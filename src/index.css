@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+/* Your custom styles below */
+body {
+  font-family: 'Inter', sans-serif;
+  scroll-behavior: smooth;
+}
+
+/* Rest of your custom CSS... */
