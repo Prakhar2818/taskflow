@@ -1,12 +1,14 @@
+// App.jsx
 import React from "react";
 import { TaskProvider } from "./context/taskContext";
 import TaskList from "./components/TaskList";
 import AddTaskModal from "./components/AddTaskModal";
 import SessionModal from "./components/SessionModal";
 import Timer from "./components/Timer";
-// import StorageStatus from "./components/StorageStatus";
-import GeneratePDF from "./components/GeneratePDF";
 import SessionTimer from "./components/SessionTimer";
+import StorageStatus from "./components/StorageStatus";
+import GeneratePDF from "./components/GeneratePDF";
+import TaskCompletionModal from "./components/TaskCompletionModal"; // NEW
 
 const App = () => {
   return (
@@ -30,7 +32,7 @@ const App = () => {
         </div>
 
         {/* Main Content */}
-        <div className="relative max-w-5xl mx-auto px-6 py-10 space-y-8">
+        <div className="relative max-w-6xl mx-auto px-6 py-10 space-y-8">
           {/* Action Bar */}
           <div className="flex flex-col sm:flex-row gap-6 justify-between items-center animate-fade-in">
             <AddTaskModal />
@@ -38,10 +40,11 @@ const App = () => {
           </div>
 
           {/* Storage Status */}
-          {/* <div className="animate-slide-up">
+          <div className="animate-slide-up">
             <StorageStatus />
-          </div> */}
+          </div>
 
+          {/* Session Timer */}
           <SessionTimer />
 
           {/* Timer Section */}
@@ -50,13 +53,14 @@ const App = () => {
           </div>
 
           {/* Tasks Section */}
-          {/* <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300 animate-slide-up">
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300 animate-slide-up">
             <TaskList />
-          </div> */}
+          </div>
         </div>
 
         {/* Modals */}
         <SessionModal />
+        <TaskCompletionModal /> {/* NEW: Task completion modal */}
 
         {/* Footer */}
         <div className="relative text-center py-12 text-gray-500">

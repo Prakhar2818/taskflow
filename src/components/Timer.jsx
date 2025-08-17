@@ -1,3 +1,4 @@
+// components/Timer.jsx - SIMPLIFIED VERSION
 import React, { useState, useEffect, useCallback } from "react";
 import { useTaskContext } from "../context/taskContext";
 
@@ -6,80 +7,76 @@ const Timer = () => {
     activeTask, 
     activeSession,
     currentSessionTaskIndex,
-    timerState, 
     updateTimerState, 
-    completeTask, 
+    handleTimerComplete,
     addSessionToTask,
-    clearActiveTask,
-    completeSessionTask // Make sure this is available
+    clearActiveTask
   } = useTaskContext();
   
   const [seconds, setSeconds] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState(null);
+  const [totalTime, setTotalTime] = useState(0);
 
-  // Initialize timer when activeTask changes
+  // **FIXED: Simple initialization - no context interference**
   useEffect(() => {
-    if (activeTask && activeTask.timerSeconds) {
-      setSeconds(activeTask.timerSeconds);
-      updateTimerState({
-        remainingTime: activeTask.timerSeconds,
-        totalTime: activeTask.timerSeconds,
-        isRunning: false
-      });
+    console.log("Timer: Task changed:", activeTask?.name);
+    
+    if (activeTask) {
+      const taskDuration = Math.max(60, activeTask.timerSeconds || 60);
+      console.log("Timer: Setting duration to", taskDuration);
+      
+      setSeconds(taskDuration);
+      setTotalTime(taskDuration);
+      setIsRunning(false);
+      setSessionStartTime(null);
     } else {
       setSeconds(0);
+      setTotalTime(0);
+      setIsRunning(false);
+      setSessionStartTime(null);
     }
-  }, [activeTask?.id, activeTask?.timerSeconds]);
+  }, [activeTask?.id]); // **FIXED: Only depend on task ID**
 
-  // Memoize the timer complete handler
-  const handleTimerComplete = useCallback(() => {
+  // Timer complete handler
+  const onTimerComplete = useCallback(() => {
+    console.log("Timer: Completed!");
+    setIsRunning(false);
+    
     if (activeTask && sessionStartTime) {
-      const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
+      const timeSpent = Math.floor((Date.now() - sessionStartTime) / 1000);
       
-      // Add session data
       if (activeTask.sessionId) {
         addSessionToTask(activeTask.id, {
           startTime: new Date(sessionStartTime).toISOString(),
           endTime: new Date().toISOString(),
-          duration: sessionDuration,
+          duration: timeSpent,
           completed: true
         });
       }
       
-      // Stop the timer first
-      updateTimerState({ isRunning: false });
       setSessionStartTime(null);
       
-      // Show completion notification
       if ('Notification' in window && Notification.permission === 'granted') {
-        const message = activeSession 
-          ? `Task completed! ${activeSession.tasks.length - currentSessionTaskIndex - 1} tasks remaining in session.`
-          : `Great job completing "${activeTask?.name}"!`;
-        
-        new Notification('Task Completed!', {
-          body: message,
-          icon: '🎉'
+        new Notification('Timer Completed!', {
+          body: `Time's up! Please report on "${activeTask?.name}"`,
+          icon: '⏰'
         });
       }
       
-      // Handle task completion - this should trigger next task
-      if (activeTask.sessionId) {
-        // This is a session task - call session-specific completion
-        setTimeout(() => {
-          completeSessionTask();
-        }, 1000); // Small delay to show completion state
-      } else {
-        // This is a regular task
-        completeTask(activeTask.id, sessionDuration);
+      if (handleTimerComplete) {
+        handleTimerComplete(timeSpent);
       }
     }
-  }, [activeTask, activeSession, currentSessionTaskIndex, sessionStartTime, addSessionToTask, completeTask, completeSessionTask, updateTimerState]);
+  }, [activeTask, sessionStartTime, addSessionToTask, handleTimerComplete]);
 
-  // Main timer logic
+  // **FIXED: Simple timer effect - no external interference**
   useEffect(() => {
     let timer;
     
-    if (timerState.isRunning && seconds > 0) {
+    if (isRunning && seconds > 0) {
+      console.log("Timer: Starting interval");
+      
       if (!sessionStartTime) {
         setSessionStartTime(Date.now());
       }
@@ -87,26 +84,25 @@ const Timer = () => {
       timer = setInterval(() => {
         setSeconds((prevSeconds) => {
           const newSeconds = prevSeconds - 1;
-          updateTimerState({ remainingTime: newSeconds });
+          
+          // Update context (optional)
+          if (updateTimerState) {
+            updateTimerState({ 
+              remainingTime: newSeconds,
+              totalTime: totalTime,
+              isRunning: true 
+            });
+          }
           
           if (newSeconds <= 0) {
-            setTimeout(() => handleTimerComplete(), 0);
+            console.log("Timer: Reached zero");
+            setIsRunning(false);
+            setTimeout(() => onTimerComplete(), 100);
             return 0;
           }
           return newSeconds;
         });
       }, 1000);
-    } else if (!timerState.isRunning && sessionStartTime && activeTask) {
-      const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
-      if (sessionDuration > 5) {
-        addSessionToTask(activeTask.id, {
-          startTime: new Date(sessionStartTime).toISOString(),
-          endTime: new Date().toISOString(),
-          duration: sessionDuration,
-          completed: false
-        });
-      }
-      setSessionStartTime(null);
     }
 
     return () => {
@@ -114,7 +110,7 @@ const Timer = () => {
         clearInterval(timer);
       }
     };
-  }, [timerState.isRunning, seconds > 0, handleTimerComplete]);
+  }, [isRunning, totalTime, updateTimerState, onTimerComplete]);
 
   const formatTime = (timeInSeconds) => {
     const hours = Math.floor(timeInSeconds / 3600);
@@ -128,32 +124,43 @@ const Timer = () => {
   };
 
   const resetTimer = () => {
-    if (activeTask) {
-      setSeconds(activeTask.timerSeconds);
-      updateTimerState({ 
-        isRunning: false, 
-        remainingTime: activeTask.timerSeconds 
-      });
-      setSessionStartTime(null);
-    }
+    console.log("Timer: Reset clicked");
+    const taskDuration = Math.max(60, activeTask?.timerSeconds || 60);
+    setSeconds(taskDuration);
+    setTotalTime(taskDuration);
+    setIsRunning(false);
+    setSessionStartTime(null);
   };
 
   const handleStartPause = () => {
-    if (seconds > 0 && activeTask) {
-      updateTimerState({ isRunning: !timerState.isRunning });
+    console.log("Timer: Start/Pause clicked - Current isRunning:", isRunning);
+    
+    if (!activeTask) {
+      alert("No task selected");
+      return;
     }
+    
+    if (seconds <= 0) {
+      resetTimer();
+      return;
+    }
+    
+    const newState = !isRunning;
+    console.log("Timer: Setting isRunning to:", newState);
+    setIsRunning(newState);
   };
 
-  // Add manual skip function for testing/debugging
-  const handleSkipTask = () => {
-    if (activeSession && activeTask?.sessionId) {
-      handleTimerComplete();
+  const handleManualComplete = () => {
+    setIsRunning(false);
+    if (activeTask && handleTimerComplete) {
+      const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
+      handleTimerComplete(timeSpent);
     }
   };
 
   const getProgressPercentage = () => {
-    if (!activeTask || activeTask.timerSeconds === 0) return 0;
-    return ((activeTask.timerSeconds - seconds) / activeTask.timerSeconds) * 100;
+    if (totalTime === 0) return 0;
+    return ((totalTime - seconds) / totalTime) * 100;
   };
 
   const getPriorityColor = () => {
@@ -169,17 +176,12 @@ const Timer = () => {
 
   const getMotivationalMessage = () => {
     if (!activeTask) return "Select a task or start a session! 🎯";
-    
-    const progress = getProgressPercentage();
-    if (seconds === 0 && activeTask.timerSeconds > 0) return "Task completed! Great job! 🎉";
-    if (seconds === activeTask.timerSeconds) return "Ready to start your focused session! 🎯";
-    if (progress < 25) return "Just getting started! 🌱";
-    if (progress < 50) return "Making good progress! 🚀";
-    if (progress < 75) return "More than halfway there! 🔥";
-    return "Almost finished! 💪";
+    if (seconds === 0) return "Time's up! Please submit your report 📊";
+    if (isRunning) return "Focus mode active! Keep going! 🚀";
+    if (seconds === totalTime) return "Ready to start your focused session! 🎯";
+    return "Paused - ready to continue! ⏸️";
   };
 
-  // Request notification permission on component mount
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -193,7 +195,6 @@ const Timer = () => {
           <span className="text-3xl">⏱️</span>
           <h2 className="text-2xl font-bold text-gray-800">Focus Timer</h2>
         </div>
-        
         <div className="text-6xl mb-4">🎯</div>
         <p className="text-lg text-gray-600 mb-4">No active task selected</p>
         <p className="text-sm text-gray-500">Create a task or start a session to begin your focused work.</p>
@@ -210,15 +211,16 @@ const Timer = () => {
             <span className="text-purple-600 font-semibold">🎯 {activeSession.name}</span>
           </div>
           <div className="flex items-center justify-center gap-4 text-sm text-purple-600">
-            <span>Task {currentSessionTaskIndex + 1} of {activeSession.tasks.length}</span>
+            <span>Task {currentSessionTaskIndex + 1} of {activeSession.tasks?.length || 0}</span>
             <span>•</span>
-            <span>{activeSession.completedTasks} completed</span>
+            <span>{activeSession.completedTasks || 0} completed</span>
           </div>
-          {/* Session Progress Bar */}
           <div className="mt-2 bg-purple-200 rounded-full h-2">
             <div 
               className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(activeSession.completedTasks / activeSession.tasks.length) * 100}%` }}
+              style={{ 
+                width: `${activeSession.tasks?.length > 0 ? ((activeSession.completedTasks || 0) / activeSession.tasks.length) * 100 : 0}%` 
+              }}
             ></div>
           </div>
         </div>
@@ -242,13 +244,13 @@ const Timer = () => {
               className="px-3 py-1 rounded-full text-xs font-bold text-white"
               style={{ backgroundColor: getPriorityColor() }}
             >
-              {activeTask.priority.toUpperCase()}
+              {activeTask.priority?.toUpperCase() || 'LOW'}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">Duration:</span>
             <span className="text-sm font-semibold text-gray-800">
-              {Math.floor(activeTask.timerSeconds / 60)}min
+              {Math.max(1, Math.floor(totalTime / 60))}min
             </span>
           </div>
         </div>
@@ -262,10 +264,10 @@ const Timer = () => {
       {/* Timer Display */}
       <div className="mb-8">
         <div className={`text-8xl font-mono font-black mb-4 transition-all duration-500 ${
-          timerState.isRunning 
+          isRunning 
             ? 'text-transparent bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text animate-pulse' 
-            : seconds === 0 && activeTask.timerSeconds > 0
-              ? 'text-transparent bg-gradient-to-r from-yellow-500 to-orange-600 bg-clip-text'
+            : seconds === 0
+              ? 'text-transparent bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text animate-bounce'
               : 'text-gray-700'
         }`}>
           {formatTime(seconds)}
@@ -273,50 +275,34 @@ const Timer = () => {
         
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full border border-blue-200 mb-4">
           <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
-            seconds === 0 && activeTask.timerSeconds > 0 ? 'bg-yellow-500 animate-bounce' :
-            timerState.isRunning ? 'bg-green-500 animate-pulse' : 
-            seconds === activeTask.timerSeconds ? 'bg-blue-500' : 'bg-gray-400'
+            seconds === 0 ? 'bg-orange-500 animate-bounce' :
+            isRunning ? 'bg-green-500 animate-pulse' : 'bg-blue-500'
           }`}></div>
           <span className="text-sm font-semibold text-gray-600">
             {getMotivationalMessage()}
           </span>
         </div>
 
-        {activeTask.timerSeconds > 0 && (
-          <div className="text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-full inline-block">
-            Progress: {Math.round(getProgressPercentage())}% • {formatTime(activeTask.timerSeconds - seconds)} elapsed
-          </div>
-        )}
+        <div className="text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-full inline-block">
+          Progress: {Math.round(getProgressPercentage())}% • {formatTime(totalTime - seconds)} elapsed
+        </div>
       </div>
 
       {/* Progress Ring */}
       <div className="relative w-32 h-32 mx-auto mb-6">
         <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="8" />
           <circle
-            cx="60"
-            cy="60"
-            r="50"
-            fill="none"
-            stroke="#e5e7eb"
-            strokeWidth="8"
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r="50"
-            fill="none"
-            stroke={getPriorityColor()}
-            strokeWidth="8"
-            strokeLinecap="round"
+            cx="60" cy="60" r="50" fill="none"
+            stroke={seconds === 0 ? "#f97316" : getPriorityColor()}
+            strokeWidth="8" strokeLinecap="round"
             strokeDasharray={`${getProgressPercentage() * 3.14} 314`}
             className="transition-all duration-1000 ease-in-out"
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-2xl">
-            {seconds === 0 && activeTask.timerSeconds > 0 ? "🎉" : 
-             timerState.isRunning ? "🏃‍♂️" : 
-             seconds === activeTask.timerSeconds ? "🎯" : "⏸️"}
+            {seconds === 0 ? "📊" : isRunning ? "🏃‍♂️" : "⏸️"}
           </span>
         </div>
       </div>
@@ -325,59 +311,68 @@ const Timer = () => {
       <div className="flex gap-4 justify-center">
         <button
           onClick={handleStartPause}
-          disabled={!activeTask || activeTask.timerSeconds === 0}
+          disabled={!activeTask}
           className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-            timerState.isRunning
+            isRunning
               ? "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white"
               : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
           }`}
         >
-          <span className="text-xl">
-            {timerState.isRunning ? "⏸️" : "▶️"}
-          </span>
-          {timerState.isRunning ? "Pause" : "Start"}
+          <span className="text-xl">{isRunning ? "⏸️" : "▶️"}</span>
+          {isRunning ? "Pause" : "Start"}
         </button>
 
         <button
           onClick={resetTimer}
-          disabled={!activeTask || (seconds === activeTask.timerSeconds && !timerState.isRunning)}
+          disabled={!activeTask}
           className="px-6 py-3 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none flex items-center gap-2"
         >
           <span className="text-xl">🔄</span>
           Reset
         </button>
 
-        {/* Add Skip button for debugging/testing */}
-        {activeSession && activeTask?.sessionId && process.env.NODE_ENV === 'development' && (
+        {seconds === 0 && (
           <button
-            onClick={handleSkipTask}
-            className="px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
+            onClick={handleManualComplete}
+            className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
           >
-            <span className="text-xl">⏭️</span>
-            Skip
+            <span className="text-xl">📊</span>
+            Submit Report
+          </button>
+        )}
+
+        {process.env.NODE_ENV === 'development' && (
+          <button
+            onClick={handleManualComplete}
+            className="px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
+          >
+            <span className="text-xl">🧪</span>
+            Test Complete
           </button>
         )}
       </div>
 
-      {/* Next Task Preview for Sessions */}
-      {activeSession && currentSessionTaskIndex < activeSession.tasks.length - 1 && (
+      {/* Next Task Preview */}
+      {activeSession && currentSessionTaskIndex < (activeSession.tasks?.length || 0) - 1 && (
         <div className="mt-6 p-3 bg-blue-50 rounded-xl border border-blue-200">
           <p className="text-sm text-blue-600 mb-1">Next up:</p>
           <p className="font-medium text-blue-800">
-            {activeSession.tasks[currentSessionTaskIndex + 1].name}
+            {activeSession.tasks?.[currentSessionTaskIndex + 1]?.name || 'Next Task'}
           </p>
           <p className="text-xs text-blue-600">
-            {activeSession.tasks[currentSessionTaskIndex + 1].duration} minutes
+            {activeSession.tasks?.[currentSessionTaskIndex + 1]?.duration || 1} minutes
           </p>
         </div>
       )}
 
-      {/* Debug info for development */}
+      {/* Debug info */}
       {process.env.NODE_ENV === 'development' && (
         <div className="mt-4 text-xs text-gray-400 bg-gray-100 p-2 rounded">
-          Debug: seconds={seconds}, isRunning={timerState.isRunning}, 
-          sessionId={activeTask?.sessionId}, sessionIndex={activeTask?.sessionIndex},
-          currentIndex={currentSessionTaskIndex}
+          <div><strong>Debug:</strong></div>
+          <div>• seconds: {seconds} | totalTime: {totalTime}</div>
+          <div>• isRunning: {isRunning.toString()}</div>
+          <div>• sessionStartTime: {sessionStartTime ? new Date(sessionStartTime).toLocaleTimeString() : 'None'}</div>
+          <div>• activeTask: {activeTask?.name || 'None'}</div>
         </div>
       )}
     </div>
