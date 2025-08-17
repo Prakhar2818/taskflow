@@ -119,7 +119,7 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('taskflow-token', accessToken);
       localStorage.setItem('taskflow-refresh-token', newRefreshToken);
-
+ 
       return { success: true, user };
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed';
@@ -139,15 +139,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       const { user, accessToken, refreshToken: newRefreshToken } = response.data.data;
-
-      // Store tokens and user data
-      setToken(accessToken);
-      setRefreshToken(newRefreshToken);
-      setUser(user);
-      
-      localStorage.setItem('taskflow-token', accessToken);
-      localStorage.setItem('taskflow-refresh-token', newRefreshToken);
-
+  
       return { success: true, user };
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed';
