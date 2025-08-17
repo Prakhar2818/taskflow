@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/authContext";
+import EnhancedHeader from "../components/EnhancedHeader";
 
 const SettingCard = ({ title, description, children }) => (
   <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/40">
@@ -77,175 +78,178 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <div className="max-w-4xl mx-auto py-10 px-6">
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-6 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Dashboard
-        </button>
+    <>
+      <EnhancedHeader />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="max-w-4xl mx-auto py-10 px-6">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-6 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Dashboard
+          </button>
 
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">⚙️ Settings</h1>
-            <p className="text-gray-600">Customize your TaskFlow experience</p>
-          </div>
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">⚙️ Settings</h1>
+              <p className="text-gray-600">Customize your TaskFlow experience</p>
+            </div>
 
-          <div className="space-y-6">
-            {/* Account Settings */}
-            <SettingCard
-              title="Account Information"
-              description="Manage your account details and preferences"
-            >
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                  <input
-                    type="text"
-                    value={user?.name || ''}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    readOnly
-                  />
+            <div className="space-y-6">
+              {/* Account Settings */}
+              <SettingCard
+                title="Account Information"
+                description="Manage your account details and preferences"
+              >
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                    <input
+                      type="text"
+                      value={user?.name || ''}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input
+                      type="email"
+                      value={user?.email || ''}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      readOnly
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={user?.email || ''}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    readOnly
-                  />
-                </div>
-              </div>
-            </SettingCard>
+              </SettingCard>
 
-            {/* Appearance */}
-            <SettingCard
-              title="Appearance"
-              description="Customize the look and feel of TaskFlow"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Dark Mode</span>
-                <ToggleSwitch
-                  enabled={settings.darkMode}
-                  onChange={(value) => updateSetting('darkMode', value)}
-                />
-              </div>
-            </SettingCard>
-
-            {/* Notifications */}
-            <SettingCard
-              title="Notifications"
-              description="Control how you receive updates and alerts"
-            >
-              <div className="space-y-4">
+              {/* Appearance */}
+              <SettingCard
+                title="Appearance"
+                description="Customize the look and feel of TaskFlow"
+              >
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-700">Push Notifications</span>
+                  <span className="text-gray-700">Dark Mode</span>
                   <ToggleSwitch
-                    enabled={settings.notifications}
-                    onChange={(value) => updateSetting('notifications', value)}
+                    enabled={settings.darkMode}
+                    onChange={(value) => updateSetting('darkMode', value)}
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700">Email Updates</span>
-                  <ToggleSwitch
-                    enabled={settings.emailUpdates}
-                    onChange={(value) => updateSetting('emailUpdates', value)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700">Sound Effects</span>
-                  <ToggleSwitch
-                    enabled={settings.soundEffects}
-                    onChange={(value) => updateSetting('soundEffects', value)}
-                  />
-                </div>
-              </div>
-            </SettingCard>
+              </SettingCard>
 
-            {/* Productivity */}
-            <SettingCard
-              title="Productivity"
-              description="Configure productivity and workflow settings"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700">Auto Save</span>
-                  <ToggleSwitch
-                    enabled={settings.autoSave}
-                    onChange={(value) => updateSetting('autoSave', value)}
-                  />
+              {/* Notifications */}
+              <SettingCard
+                title="Notifications"
+                description="Control how you receive updates and alerts"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Push Notifications</span>
+                    <ToggleSwitch
+                      enabled={settings.notifications}
+                      onChange={(value) => updateSetting('notifications', value)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Email Updates</span>
+                    <ToggleSwitch
+                      enabled={settings.emailUpdates}
+                      onChange={(value) => updateSetting('emailUpdates', value)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Sound Effects</span>
+                    <ToggleSwitch
+                      enabled={settings.soundEffects}
+                      onChange={(value) => updateSetting('soundEffects', value)}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Default Session Duration</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="25">25 minutes</option>
-                    <option value="30">30 minutes</option>
-                    <option value="45">45 minutes</option>
-                    <option value="60">1 hour</option>
-                  </select>
+              </SettingCard>
+
+              {/* Productivity */}
+              <SettingCard
+                title="Productivity"
+                description="Configure productivity and workflow settings"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Auto Save</span>
+                    <ToggleSwitch
+                      enabled={settings.autoSave}
+                      onChange={(value) => updateSetting('autoSave', value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Default Session Duration</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                      <option value="25">25 minutes</option>
+                      <option value="30">30 minutes</option>
+                      <option value="45">45 minutes</option>
+                      <option value="60">1 hour</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-            </SettingCard>
+              </SettingCard>
 
-            {/* Data Management */}
-            <SettingCard
-              title="Data Management"
-              description="Export, import, or clear your data"
-            >
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={handleExportData}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Export Data
-                </button>
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                  </svg>
-                  Import Data
-                </button>
-                <button
-                  onClick={handleClearData}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Clear All Data
-                </button>
-              </div>
-            </SettingCard>
+              {/* Data Management */}
+              <SettingCard
+                title="Data Management"
+                description="Export, import, or clear your data"
+              >
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={handleExportData}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export Data
+                  </button>
+                  <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    Import Data
+                  </button>
+                  <button
+                    onClick={handleClearData}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Clear All Data
+                  </button>
+                </div>
+              </SettingCard>
 
-            {/* Danger Zone */}
-            <SettingCard
-              title="Account Actions"
-              description="Account-related actions and security"
-            >
-              <div className="flex flex-wrap gap-3">
-                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                  Change Password
-                </button>
-                <button
-                  onClick={logout}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Sign Out
-                </button>
-              </div>
-            </SettingCard>
+              {/* Danger Zone */}
+              <SettingCard
+                title="Account Actions"
+                description="Account-related actions and security"
+              >
+                <div className="flex flex-wrap gap-3">
+                  <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                    Change Password
+                  </button>
+                  <button
+                    onClick={logout}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </SettingCard>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
