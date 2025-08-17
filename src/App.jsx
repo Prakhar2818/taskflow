@@ -40,7 +40,7 @@ const ProtectedRoute = ({ children }) => {
 const DashboardPage = () => {
   const navigate = useNavigate();
   const dashboardRef = useRef(null);
-  
+
   // Use shared theme context instead of local state
   const { theme } = useTheme();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -65,21 +65,20 @@ const DashboardPage = () => {
   }, []);
 
   return (
-    <div className={`min-h-screen relative overflow-hidden transition-colors duration-300 ${
-      theme === 'dark' 
-        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+    <div className={`min-h-screen relative overflow-hidden transition-colors duration-300 ${theme === 'dark'
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
         : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100'
-    }`}>
-      
+      }`}>
+
       {/* Shared background mesh overlay */}
       <div className="fixed inset-0 opacity-10 pointer-events-none z-0">
         <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
           <defs>
             <pattern id="dashboard-mesh" width="10" height="10" patternUnits="userSpaceOnUse">
-              <path 
-                d="M 10 0 L 0 0 0 10" 
-                fill="none" 
-                stroke="url(#dashboard-gradient-mesh)" 
+              <path
+                d="M 10 0 L 0 0 0 10"
+                fill="none"
+                stroke="url(#dashboard-gradient-mesh)"
                 strokeWidth="0.5"
                 opacity="0.6"
               />
@@ -97,7 +96,7 @@ const DashboardPage = () => {
       <EnhancedHeader />
 
       {/* Main Dashboard Content with enhanced styling */}
-      <div 
+      <div
         ref={dashboardRef}
         className={`relative ${theme === 'dark' ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-2xl shadow-2xl overflow-hidden`}
       >
@@ -155,9 +154,8 @@ const DashboardPage = () => {
 
             {/* Feature Showcase */}
             <div className="max-w-4xl mx-auto mb-8">
-              <p className={`text-xl lg:text-2xl font-medium leading-relaxed mb-6 ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-              }`}>
+              <p className={`text-xl lg:text-2xl font-medium leading-relaxed mb-6 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                }`}>
                 The future of productivity is here. Experience
                 <span className="text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text font-bold"> intelligent task management</span>
                 <br />with advanced analytics and seamless workflow automation.
@@ -191,11 +189,10 @@ const DashboardPage = () => {
                 ].map((feature, index) => (
                   <div
                     key={feature.label}
-                    className={`p-4 backdrop-blur-sm border rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group hover:scale-105 ${
-                      theme === 'dark' 
-                        ? 'bg-white/5 border-white/20' 
+                    className={`p-4 backdrop-blur-sm border rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group hover:scale-105 ${theme === 'dark'
+                        ? 'bg-white/5 border-white/20'
                         : 'bg-white/60 border-white/40'
-                    }`}
+                      }`}
                   >
                     <div className="text-3xl mb-2 transform group-hover:scale-110 transition-transform duration-300">
                       {feature.icon}
@@ -237,6 +234,7 @@ const App = () => {
       <ThemeProvider> {/* Wrap with ThemeProvider */}
         <Router>
           <Routes>
+
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route

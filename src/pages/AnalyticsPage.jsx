@@ -1,27 +1,33 @@
-// pages/AnalyticsPage.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { TaskProvider, useTaskContext } from "../context/taskContext";
 import EnhancedHeader from "../components/EnhancedHeader";
+import { useTheme } from "../context/themeContext"; // Import the theme context
 
-const AnalyticsCard = ({ title, value, icon, color, description }) => (
-  <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/40">
+// The card adapts to theme for backgrounds
+const AnalyticsCard = ({ title, value, icon, color, description, theme }) => (
+  <div className={`backdrop-blur-sm rounded-2xl p-6 shadow-lg border
+    ${theme === "dark" ? "bg-white/10 border-white/10" : "bg-white/60 border-white/40"}`}
+  >
     <div className="flex items-center justify-between mb-4">
-      <div className={`w-12 h-12 bg-${color}-100 rounded-xl flex items-center justify-center text-2xl`}>
+      <div className={`w-12 h-12 flex items-center justify-center text-2xl rounded-xl
+        ${theme === "dark" ? `bg-${color}-900` : `bg-${color}-100`}`}>
         {icon}
       </div>
-      <div className={`px-3 py-1 bg-${color}-100 text-${color}-600 text-sm font-medium rounded-full`}>
+      <div className={`px-3 py-1 rounded-full font-medium text-sm
+        ${theme === "dark" ? `bg-${color}-800 text-${color}-200` : `bg-${color}-100 text-${color}-600`}`}>
         +12%
       </div>
     </div>
-    <h3 className="text-2xl font-bold text-gray-800 mb-2">{value}</h3>
-    <p className="text-lg font-semibold text-gray-700 mb-1">{title}</p>
-    <p className="text-sm text-gray-500">{description}</p>
+    <h3 className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-800"} mb-2`}>{value}</h3>
+    <p className={`text-lg font-semibold ${theme === "dark" ? "text-gray-200" : "text-gray-700"} mb-1`}>{title}</p>
+    <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{description}</p>
   </div>
 );
 
 const AnalyticsPageContent = () => {
   const navigate = useNavigate();
+  const { theme } = useTheme(); // 👈 grab the theme from context
   const {
     tasks = [],
     taskCompletionReports = []
@@ -40,12 +46,18 @@ const AnalyticsPageContent = () => {
 
   return (
     <>
-    <EnhancedHeader/>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <EnhancedHeader/>
+      <div className={`min-h-screen transition-colors duration-300 ${
+        theme === "dark"
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+          : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100"
+      }`}>
         <div className="max-w-6xl mx-auto py-10 px-6">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-6 transition-colors"
+            className={`flex items-center gap-2 font-medium mb-6 transition-colors ${
+              theme === "dark" ? "text-indigo-400 hover:text-indigo-200" : "text-indigo-600 hover:text-indigo-700"
+            }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -53,10 +65,13 @@ const AnalyticsPageContent = () => {
             Back to Dashboard
           </button>
 
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8">
+          <div className={`rounded-3xl shadow-xl border p-8 
+            ${theme === "dark" ? "bg-white/10 backdrop-blur-xl border-white/10" : "bg-white/80 backdrop-blur-xl border-white/20"}`}>
             <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">📈 Analytics Dashboard</h1>
-              <p className="text-gray-600">Track your productivity metrics and performance insights</p>
+              <h1 className={`text-3xl font-bold mb-2 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>📈 Analytics Dashboard</h1>
+              <p className={`${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                Track your productivity metrics and performance insights
+              </p>
             </div>
 
             {/* Key Metrics */}
@@ -67,6 +82,7 @@ const AnalyticsPageContent = () => {
                 icon="📋"
                 color="blue"
                 description="All time tasks created"
+                theme={theme}
               />
               <AnalyticsCard
                 title="Completed"
@@ -74,6 +90,7 @@ const AnalyticsPageContent = () => {
                 icon="✅"
                 color="green"
                 description="Successfully finished tasks"
+                theme={theme}
               />
               <AnalyticsCard
                 title="Completion Rate"
@@ -81,6 +98,7 @@ const AnalyticsPageContent = () => {
                 icon="📊"
                 color="purple"
                 description="Overall success rate"
+                theme={theme}
               />
               <AnalyticsCard
                 title="Focus Time"
@@ -88,44 +106,52 @@ const AnalyticsPageContent = () => {
                 icon="⏱️"
                 color="orange"
                 description="Total productive hours"
+                theme={theme}
               />
             </div>
 
             {/* Progress Chart */}
-            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/40 mb-8">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Weekly Progress</h3>
+            <div className={`rounded-2xl p-6 shadow-lg border mb-8 
+              ${theme === "dark" ? "bg-white/10 border-white/10" : "bg-white/60 border-white/40"}`
+            }>
+              <h3 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>Weekly Progress</h3>
               <div className="space-y-4">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
                   <div key={day} className="flex items-center gap-4">
-                    <span className="w-12 text-sm font-medium text-gray-600">{day}</span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-3">
+                    <span className={`w-12 text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>{day}</span>
+                    <div className={`flex-1 rounded-full h-3 ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`}>
                       <div
                         className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all duration-500"
                         style={{ width: `${Math.random() * 80 + 20}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm text-gray-500">{Math.floor(Math.random() * 8 + 2)}h</span>
+                    <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{Math.floor(Math.random() * 8 + 2)}h</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Recent Activity */}
-            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/40">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Recent Activity</h3>
+            <div className={`rounded-2xl p-6 shadow-lg border 
+              ${theme === "dark" ? "bg-white/10 border-white/10" : "bg-white/60 border-white/40"}`}
+            >
+              <h3 className={`text-xl font-bold mb-4 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>Recent Activity</h3>
               <div className="space-y-3">
                 {[
                   { action: "Completed task", task: "Design review", time: "2 hours ago", status: "success" },
                   { action: "Started session", task: "Development work", time: "4 hours ago", status: "info" },
                   { action: "Task created", task: "Write documentation", time: "1 day ago", status: "default" }
                 ].map((activity, index) => (
-                  <div key={index} className="flex items-center gap-4 p-3 rounded-lg bg-white/40">
-                    <div className={`w-2 h-2 rounded-full ${activity.status === 'success' ? 'bg-green-500' :
-                        activity.status === 'info' ? 'bg-blue-500' : 'bg-gray-400'
-                      }`}></div>
+                  <div key={index} className={`flex items-center gap-4 p-3 rounded-lg ${theme === "dark" ? "bg-white/5" : "bg-white/40"}`}>
+                    <div className={`w-2 h-2 rounded-full ${
+                      activity.status === 'success' ? 'bg-green-500' :
+                      activity.status === 'info' ? 'bg-blue-500' : 'bg-gray-400'
+                    }`}></div>
                     <div className="flex-1">
-                      <p className="text-gray-800 font-medium">{activity.action}: {activity.task}</p>
-                      <p className="text-sm text-gray-500">{activity.time}</p>
+                      <p className={`${theme === "dark" ? "text-gray-100" : "text-gray-800"} font-medium`}>
+                        {activity.action}: {activity.task}
+                      </p>
+                      <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{activity.time}</p>
                     </div>
                   </div>
                 ))}
@@ -138,12 +164,10 @@ const AnalyticsPageContent = () => {
   );
 };
 
-const AnalyticsPage = () => {
-  return (
-    <TaskProvider>
-      <AnalyticsPageContent />
-    </TaskProvider>
-  );
-};
+const AnalyticsPage = () => (
+  <TaskProvider>
+    <AnalyticsPageContent />
+  </TaskProvider>
+);
 
 export default AnalyticsPage;

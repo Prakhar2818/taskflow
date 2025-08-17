@@ -1,12 +1,14 @@
-// pages/CreateSessionPage.jsx - WITH DETAILED INSTRUCTIONS
+// pages/CreateSessionPage.jsx - WITH THEME CONTEXT INTEGRATION
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TaskProvider, useTaskContext } from "../context/taskContext";
+import { useTheme } from "../context/themeContext"; // Import theme context
 import SessionModal from "../components/SessionModal";
 import EnhancedHeader from "../components/EnhancedHeader";
 
 const CreateSessionPageContent = () => {
   const navigate = useNavigate();
+  const { theme } = useTheme(); // Get theme from context
   const { setShowSessionModal } = useTaskContext();
 
   const handleOpenModal = () => {
@@ -15,12 +17,18 @@ const CreateSessionPageContent = () => {
 
   return (
     <>
-    <EnhancedHeader/>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <EnhancedHeader/>
+      <div className={`min-h-screen transition-colors duration-300 ${
+        theme === "dark"
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+          : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100"
+      }`}>
         <div className="max-w-2xl mx-auto py-10 px-6">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-6 transition-colors"
+            className={`flex items-center gap-2 font-medium mb-6 transition-colors ${
+              theme === "dark" ? "text-indigo-400 hover:text-indigo-200" : "text-indigo-600 hover:text-indigo-700"
+            }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -28,10 +36,15 @@ const CreateSessionPageContent = () => {
             Back to Dashboard
           </button>
 
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8">
+          <div className={`rounded-3xl shadow-xl border p-8 
+            ${theme === "dark" ? "bg-white/10 backdrop-blur-xl border-white/10" : "bg-white/80 backdrop-blur-xl border-white/20"}`}>
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">🎯 Start New Session</h1>
-              <p className="text-gray-600">Create a focused work session to maximize your productivity</p>
+              <h1 className={`text-3xl font-bold mb-2 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                🎯 Start New Session
+              </h1>
+              <p className={`${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                Create a focused work session to maximize your productivity
+              </p>
             </div>
 
             {/* Session Creation Interface */}
@@ -49,29 +62,57 @@ const CreateSessionPageContent = () => {
 
               {/* Info Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-                <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/40">
+                <div className={`backdrop-blur-sm rounded-xl p-4 border ${
+                  theme === "dark" ? "bg-white/10 border-white/10" : "bg-white/60 border-white/40"
+                }`}>
                   <div className="text-2xl mb-2">⏰</div>
-                  <h3 className="font-semibold text-gray-800 mb-1">Duration Setting</h3>
-                  <p className="text-sm text-gray-600">Choose work and break durations</p>
+                  <h3 className={`font-semibold mb-1 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                    Duration Setting
+                  </h3>
+                  <p className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                    Choose work and break durations
+                  </p>
                 </div>
 
-                <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/40">
+                <div className={`backdrop-blur-sm rounded-xl p-4 border ${
+                  theme === "dark" ? "bg-white/10 border-white/10" : "bg-white/60 border-white/40"
+                }`}>
                   <div className="text-2xl mb-2">📝</div>
-                  <h3 className="font-semibold text-gray-800 mb-1">Session Goals</h3>
-                  <p className="text-sm text-gray-600">Define what you want to accomplish</p>
+                  <h3 className={`font-semibold mb-1 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                    Session Goals
+                  </h3>
+                  <p className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                    Define what you want to accomplish
+                  </p>
                 </div>
 
-                <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/40">
+                <div className={`backdrop-blur-sm rounded-xl p-4 border ${
+                  theme === "dark" ? "bg-white/10 border-white/10" : "bg-white/60 border-white/40"
+                }`}>
                   <div className="text-2xl mb-2">📊</div>
-                  <h3 className="font-semibold text-gray-800 mb-1">Progress Tracking</h3>
-                  <p className="text-sm text-gray-600">Monitor your productivity metrics</p>
+                  <h3 className={`font-semibold mb-1 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                    Progress Tracking
+                  </h3>
+                  <p className={`text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                    Monitor your productivity metrics
+                  </p>
                 </div>
               </div>
 
               {/* Session Creation Instructions */}
-              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                <h4 className="font-semibold text-purple-800 mb-2">💡 How to create a work session:</h4>
-                <ul className="text-sm text-purple-700 space-y-1">
+              <div className={`rounded-xl p-4 border ${
+                theme === "dark" 
+                  ? "bg-purple-900/20 border-purple-700/30" 
+                  : "bg-purple-50 border-purple-200"
+              }`}>
+                <h4 className={`font-semibold mb-2 ${
+                  theme === "dark" ? "text-purple-300" : "text-purple-800"
+                }`}>
+                  💡 How to create a work session:
+                </h4>
+                <ul className={`text-sm space-y-1 ${
+                  theme === "dark" ? "text-purple-200" : "text-purple-700"
+                }`}>
                   <li>• Click "Open Session Creator" to start</li>
                   <li>• Enter a descriptive session title</li>
                   <li>• Set your work duration (15-90 minutes)</li>
