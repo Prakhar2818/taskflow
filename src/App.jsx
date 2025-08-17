@@ -1,6 +1,10 @@
-// App.jsx - FULLY FUNCTIONAL HEADER VERSION
+// App.jsx - UPDATED WITH AUTHENTICATION INTEGRATION
 import React, { useState, useEffect, useRef } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/authContext";
 import { TaskProvider, useTaskContext } from "./context/taskContext";
+import Login from "./components/Login";
+import Register from "./components/Register";
 import TaskList from "./components/TaskList";
 import AddTaskModal from "./components/AddTaskModal";
 import SessionModal from "./components/SessionModal";
@@ -9,6 +13,27 @@ import SessionTimer from "./components/SessionTimer";
 import StorageStatus from "./components/StorageStatus";
 import GeneratePDF from "./components/GeneratePDF";
 import TaskCompletionModal from "./components/TaskCompletionModal";
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center animate-pulse">
+            <span className="text-2xl">📋</span>
+          </div>
+          <div className="text-xl font-semibold text-gray-700 mb-2">Loading TaskFlow...</div>
+          <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
 
 // Notification Panel Component
 const NotificationPanel = ({ isOpen, onClose, notifications, onClearNotification }) => {
@@ -28,7 +53,7 @@ const NotificationPanel = ({ isOpen, onClose, notifications, onClearNotification
             </svg>
           </button>
         </div>
-
+        
         {notifications.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,10 +66,11 @@ const NotificationPanel = ({ isOpen, onClose, notifications, onClearNotification
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`p-3 rounded-lg border-l-4 ${notification.type === 'success' ? 'bg-green-50 border-green-500' :
-                    notification.type === 'error' ? 'bg-red-50 border-red-500' :
-                      'bg-blue-50 border-blue-500'
-                  }`}
+                className={`p-3 rounded-lg border-l-4 ${
+                  notification.type === 'success' ? 'bg-green-50 border-green-500' :
+                  notification.type === 'error' ? 'bg-red-50 border-red-500' :
+                  'bg-blue-50 border-blue-500'
+                }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -71,7 +97,14 @@ const NotificationPanel = ({ isOpen, onClose, notifications, onClearNotification
 
 // User Profile Panel Component
 const UserProfilePanel = ({ isOpen, onClose, theme, onThemeChange }) => {
+  const { user, logout } = useAuth();
+  
   if (!isOpen) return null;
+
+  const handleSignOut = async () => {
+    await logout();
+    onClose();
+  };
 
   return (
     <div className="absolute top-16 right-0 w-72 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 z-50 animate-scale-in">
@@ -79,11 +112,11 @@ const UserProfilePanel = ({ isOpen, onClose, theme, onThemeChange }) => {
         {/* User Info */}
         <div className="flex items-center gap-4 mb-6">
           <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white text-xl font-bold">
-            U
+            {user?.name?.charAt(0).toUpperCase() || 'U'}
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-800">User</h3>
-            <p className="text-sm text-gray-500">user@taskflow.com</p>
+            <h3 className="text-lg font-semibold text-gray-800">{user?.name || 'User'}</h3>
+            <p className="text-sm text-gray-500">{user?.email || 'user@taskflow.com'}</p>
             <div className="flex items-center gap-1 mt-1">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <span className="text-xs text-green-600">Online</span>
@@ -97,11 +130,13 @@ const UserProfilePanel = ({ isOpen, onClose, theme, onThemeChange }) => {
             <span className="text-sm font-medium text-gray-700">Dark Mode</span>
             <button
               onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
-              className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${theme === 'dark' ? 'bg-indigo-600' : 'bg-gray-300'
-                }`}
+              className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                theme === 'dark' ? 'bg-indigo-600' : 'bg-gray-300'
+              }`}
             >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${theme === 'dark' ? 'transform translate-x-7' : 'transform translate-x-1'
-                }`} />
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${
+                theme === 'dark' ? 'transform translate-x-7' : 'transform translate-x-1'
+              }`} />
             </button>
           </div>
 
@@ -131,7 +166,10 @@ const UserProfilePanel = ({ isOpen, onClose, theme, onThemeChange }) => {
           <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200">
             Help & Support
           </button>
-          <button className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200">
+          <button 
+            onClick={handleSignOut}
+            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+          >
             Sign Out
           </button>
         </div>
@@ -154,6 +192,8 @@ const EnhancedHeader = () => {
     importData
   } = useTaskContext();
 
+  const { user } = useAuth();
+
   const [currentTime, setCurrentTime] = useState(new Date());
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('taskflow-theme') || 'light';
@@ -164,14 +204,16 @@ const EnhancedHeader = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [notifications, setNotifications] = useState([
-    { id: 1, text: "Session completed successfully!", type: "success", time: "2 min ago" },
-    { id: 2, text: "New task report generated", type: "info", time: "5 min ago" },
-    { id: 3, text: "Timer completed for task: Update", type: "success", time: "10 min ago" }
+    { id: 1, text: `Welcome back, ${user?.name || 'User'}!`, type: "success", time: "Just now" },
+    { id: 2, text: "TaskFlow is ready to boost your productivity", type: "info", time: "1 min ago" }
   ]);
   const [weatherData, setWeatherData] = useState({ temp: 22, condition: "sunny" });
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const headerRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // All your existing useEffect hooks remain the same...
+  // (Time management, theme persistence, mouse tracking, keyboard shortcuts)
 
   // Time management
   useEffect(() => {
@@ -241,14 +283,17 @@ const EnhancedHeader = () => {
     completedTasks: tasks.filter(task => task.status === 'completed').length,
     activeSessions: sessions.filter(session => session.status === 'pending').length,
     totalReports: taskCompletionReports.length,
-    efficiency: taskCompletionReports.length > 0 ?
+    efficiency: taskCompletionReports.length > 0 ? 
       Math.round(taskCompletionReports.reduce((acc, report) => acc + (report.efficiency || 0), 0) / taskCompletionReports.length) : 0,
     streakDays: 7,
     focusTime: Math.round(taskCompletionReports.reduce((acc, report) => acc + (report.actualTimeSpent || 0), 0) / 60)
   };
 
-  const completionRate = advancedStats.totalTasks > 0 ?
+  const completionRate = advancedStats.totalTasks > 0 ? 
     Math.round((advancedStats.completedTasks / advancedStats.totalTasks) * 100) : 0;
+
+  // All your existing functions remain the same...
+  // (handleCommand, handleFileImport, clearNotification, etc.)
 
   // Command Palette functionality
   const handleCommand = (command) => {
@@ -260,7 +305,6 @@ const EnhancedHeader = () => {
         setShowSessionModal(true);
         break;
       case 'generate-report':
-        // Trigger PDF generation from context
         window.dispatchEvent(new CustomEvent('generate-pdf'));
         break;
       case 'clear-data':
@@ -347,11 +391,13 @@ const EnhancedHeader = () => {
     { id: 'settings', label: 'Settings', icon: '⚙️' }
   ];
 
+  // Your existing JSX return with updated UserProfilePanel
   return (
     <div
       ref={headerRef}
       className={`relative ${theme === 'dark' ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-2xl border-b ${theme === 'dark' ? 'border-gray-800/50' : 'border-white/30'} shadow-2xl sticky top-0 z-30 overflow-hidden`}
     >
+      {/* All your existing header content remains exactly the same */}
       {/* Hidden file input for import */}
       <input
         ref={fileInputRef}
@@ -362,7 +408,7 @@ const EnhancedHeader = () => {
       />
 
       {/* Dynamic Gradient Overlay */}
-      <div
+      <div 
         className="absolute inset-0 opacity-30 transition-all duration-1000"
         style={{
           background: `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(99, 102, 241, 0.1) 0%, transparent 50%)`
@@ -374,10 +420,10 @@ const EnhancedHeader = () => {
         <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
           <defs>
             <pattern id="mesh" width="10" height="10" patternUnits="userSpaceOnUse">
-              <path
-                d="M 10 0 L 0 0 0 10"
-                fill="none"
-                stroke="url(#gradient-mesh)"
+              <path 
+                d="M 10 0 L 0 0 0 10" 
+                fill="none" 
+                stroke="url(#gradient-mesh)" 
                 strokeWidth="0.5"
                 opacity="0.6"
               />
@@ -405,20 +451,21 @@ const EnhancedHeader = () => {
                   <span className="text-3xl relative z-10 filter drop-shadow-lg transform group-hover:scale-110 transition-transform duration-500">📋</span>
                   <div className="absolute top-2 left-2 w-1 h-1 bg-white/60 rounded-full animate-ping" />
                   <div className="absolute bottom-3 right-3 w-0.5 h-0.5 bg-white/40 rounded-full animate-pulse delay-200" />
-
+                  
                   {activeSession && (
                     <div className="absolute -inset-2 rounded-2xl border-2 border-green-400/50 animate-pulse-ring" />
                   )}
                 </div>
-
+                
                 <div className="absolute -bottom-1 -right-1 flex items-center gap-1">
-                  <div className={`w-4 h-4 rounded-full border-2 border-white shadow-lg flex items-center justify-center ${activeSession ? 'bg-green-500' : 'bg-blue-500'
-                    }`}>
+                  <div className={`w-4 h-4 rounded-full border-2 border-white shadow-lg flex items-center justify-center ${
+                    activeSession ? 'bg-green-500' : 'bg-blue-500'
+                  }`}>
                     <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                   </div>
                 </div>
               </div>
-
+              
               {/* Brand Info with Live Stats */}
               <div>
                 <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} tracking-tight`}>
@@ -429,7 +476,7 @@ const EnhancedHeader = () => {
                 </h2>
                 <div className="flex items-center gap-3 text-sm">
                   <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Productivity Suite
+                    Welcome back, {user?.name || 'User'}!
                   </span>
                   <div className="flex items-center gap-1">
                     <div className={`w-1 h-1 rounded-full ${completionRate > 50 ? 'bg-green-500' : 'bg-orange-500'} animate-pulse`} />
@@ -447,14 +494,15 @@ const EnhancedHeader = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${activeTab === tab.id
-                      ? theme === 'dark'
-                        ? 'text-white bg-white/10 border border-white/20'
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                    activeTab === tab.id
+                      ? theme === 'dark' 
+                        ? 'text-white bg-white/10 border border-white/20' 
                         : 'text-indigo-600 bg-indigo-50 border border-indigo-200'
                       : theme === 'dark'
                         ? 'text-gray-400 hover:text-white hover:bg-white/5'
                         : 'text-gray-600 hover:text-indigo-600 hover:bg-gray-50'
-                    }`}
+                  }`}
                 >
                   <span>{tab.icon}</span>
                   {tab.label}
@@ -507,7 +555,7 @@ const EnhancedHeader = () => {
 
             {/* Notifications */}
             <div className="relative">
-              <button
+              <button 
                 onClick={() => {
                   setIsNotificationOpen(!isNotificationOpen);
                   setIsProfileOpen(false);
@@ -524,8 +572,8 @@ const EnhancedHeader = () => {
                   </div>
                 )}
               </button>
-
-              <NotificationPanel
+              
+              <NotificationPanel 
                 isOpen={isNotificationOpen}
                 onClose={() => setIsNotificationOpen(false)}
                 notifications={notifications}
@@ -539,14 +587,14 @@ const EnhancedHeader = () => {
               className={`relative p-3 ${theme === 'dark' ? 'text-gray-300 hover:text-white bg-white/5 hover:bg-white/10' : 'text-gray-600 hover:text-indigo-600 bg-white/50 hover:bg-indigo-50'} backdrop-blur-sm rounded-xl border ${theme === 'dark' ? 'border-white/10 hover:border-white/20' : 'border-white/30 hover:border-indigo-200'} transition-all duration-200 shadow-lg hover:shadow-xl group`}
             >
               <div className="relative w-5 h-5">
-                <svg
-                  className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'light' ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'}`}
+                <svg 
+                  className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'light' ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'}`} 
                   fill="none" stroke="currentColor" viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
-                <svg
-                  className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'dark' ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'}`}
+                <svg 
+                  className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'dark' ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'}`} 
                   fill="none" stroke="currentColor" viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
@@ -563,11 +611,11 @@ const EnhancedHeader = () => {
                 }}
                 className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-105"
               >
-                U
+                {user?.name?.charAt(0).toUpperCase() || 'U'}
               </button>
               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
-
-              <UserProfilePanel
+              
+              <UserProfilePanel 
                 isOpen={isProfileOpen}
                 onClose={() => setIsProfileOpen(false)}
                 theme={theme}
@@ -597,7 +645,7 @@ const EnhancedHeader = () => {
                   { command: 'export-data', label: 'Export Data', icon: '💾', shortcut: '' },
                   { command: 'import-data', label: 'Import Data', icon: '📁', shortcut: '' },
                   { command: 'clear-data', label: 'Clear All Data', icon: '🗑️', shortcut: '' }
-                ].filter(item =>
+                ].filter(item => 
                   item.label.toLowerCase().includes(searchQuery.toLowerCase())
                 ).map((item) => (
                   <button
@@ -647,13 +695,13 @@ const EnhancedHeader = () => {
                   {stat.label}
                 </div>
               </div>
-
+              
               <div className={`absolute inset-0 bg-gradient-to-r from-${stat.color}-500/10 to-${stat.color}-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
             </div>
           ))}
         </div>
 
-        {/* Tab Content */}
+        {/* Tab Content - All your existing tab content remains the same */}
         {activeTab === 'dashboard' && (
           <div className="text-center relative">
             {/* Floating Elements */}
@@ -665,7 +713,7 @@ const EnhancedHeader = () => {
             <div className="relative mb-8">
               <h1 className={`text-8xl lg:text-9xl xl:text-[10rem] font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4 tracking-tight relative leading-none`}>
                 TaskFlow
-
+                
                 <div className="absolute inset-0 text-8xl lg:text-9xl xl:text-[10rem] font-black text-purple-600/5 blur-3xl animate-pulse-slow">
                   TaskFlow
                 </div>
@@ -689,7 +737,7 @@ const EnhancedHeader = () => {
                 <span className="text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text font-bold"> intelligent task management</span>
                 <br />with advanced analytics and seamless workflow automation.
               </p>
-
+              
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
                   { icon: '⚡', label: 'Fast', desc: 'Lightning quick' },
@@ -739,6 +787,7 @@ const EnhancedHeader = () => {
           </div>
         )}
 
+        {/* Your existing analytics and settings tabs */}
         {activeTab === 'analytics' && (
           <div className={`p-6 ${theme === 'dark' ? 'bg-white/5' : 'bg-white/60'} backdrop-blur-sm rounded-2xl border ${theme === 'dark' ? 'border-white/10' : 'border-white/40'} shadow-lg`}>
             <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} mb-6`}>
@@ -749,13 +798,13 @@ const EnhancedHeader = () => {
                 <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} mb-2`}>Completion Rate</h3>
                 <div className="text-3xl font-bold text-green-500 mb-2">{completionRate}%</div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
+                  <div 
                     className="bg-green-500 h-2 rounded-full transition-all duration-1000"
                     style={{ width: `${completionRate}%` }}
                   />
                 </div>
               </div>
-
+              
               <div className={`p-4 ${theme === 'dark' ? 'bg-white/5' : 'bg-white/80'} rounded-xl`}>
                 <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} mb-2`}>Average Efficiency</h3>
                 <div className="text-3xl font-bold text-blue-500 mb-2">{advancedStats.efficiency}%</div>
@@ -763,7 +812,7 @@ const EnhancedHeader = () => {
                   Based on {taskCompletionReports.length} reports
                 </p>
               </div>
-
+              
               <div className={`p-4 ${theme === 'dark' ? 'bg-white/5' : 'bg-white/80'} rounded-xl`}>
                 <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} mb-2`}>Focus Time</h3>
                 <div className="text-3xl font-bold text-purple-500 mb-2">{advancedStats.focusTime}m</div>
@@ -788,14 +837,16 @@ const EnhancedHeader = () => {
                 </div>
                 <button
                   onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                  className={`relative w-16 h-8 rounded-full transition-colors duration-200 ${theme === 'dark' ? 'bg-indigo-600' : 'bg-gray-300'
-                    }`}
+                  className={`relative w-16 h-8 rounded-full transition-colors duration-200 ${
+                    theme === 'dark' ? 'bg-indigo-600' : 'bg-gray-300'
+                  }`}
                 >
-                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform duration-200 ${theme === 'dark' ? 'transform translate-x-9' : 'transform translate-x-1'
-                    }`} />
+                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform duration-200 ${
+                    theme === 'dark' ? 'transform translate-x-9' : 'transform translate-x-1'
+                  }`} />
                 </button>
               </div>
-
+              
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Data Management</h3>
@@ -880,7 +931,8 @@ const EnhancedHeader = () => {
   );
 };
 
-const App = () => {
+// Main Dashboard Component
+const Dashboard = () => {
   return (
     <TaskProvider>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
@@ -937,7 +989,7 @@ const App = () => {
                 ))}
               </div>
             </div>
-
+            
             <div className="flex items-center justify-center gap-4 text-sm font-medium">
               <span>Built with ❤️ using React & Tailwind CSS</span>
               <div className="flex items-center gap-2">
@@ -956,6 +1008,29 @@ const App = () => {
         </div>
       </div>
     </TaskProvider>
+  );
+};
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 };
 
