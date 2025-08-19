@@ -1,6 +1,7 @@
 // components/AutoTaskReportModal.jsx
 import React, { useState, useEffect } from 'react';
 import { useTaskContext } from '../context/taskContext';
+import { useNavigate } from 'react-router-dom';
 
 const AutoTaskReportModal = () => {
   const { 
@@ -10,6 +11,8 @@ const AutoTaskReportModal = () => {
     addTaskReport,
     activeSession 
   } = useTaskContext();
+  
+  const navigate = useNavigate();
   
   const [reportData, setReportData] = useState({
     taskStatus: 'completed', // completed, delayed, partially-completed
@@ -86,6 +89,15 @@ const AutoTaskReportModal = () => {
       qualityRating: 5,
       notes: '',
       nextActions: ''
+    });
+
+    // Navigate to session timer page with report generation flag
+    navigate('/session', { 
+      state: { 
+        session: activeSession,
+        showReportGeneration: true,
+        completedTaskReport: finalReport
+      } 
     });
   };
 
@@ -308,14 +320,7 @@ const AutoTaskReportModal = () => {
               className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
             >
               <span>📊</span>
-              Submit Report
-            </button>
-            <button
-              type="button"
-              onClick={handleSkip}
-              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-            >
-              Skip for Now
+              Submit & Generate Report
             </button>
           </div>
         </form>

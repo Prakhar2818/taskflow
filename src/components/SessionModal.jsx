@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTaskContext } from "../context/taskContext";
+import { useNavigate } from "react-router-dom";
 
 const SessionModal = () => {
   const { addSession, showSessionModal, setShowSessionModal } = useTaskContext();
@@ -17,6 +18,7 @@ const SessionModal = () => {
     setTasks([...tasks, { name: "", duration: 25, priority: "medium" }]);
   };
 
+  const navigate = useNavigate();
   const removeTask = (index) => {
     if (tasks.length > 1) {
       setTasks(tasks.filter((_, i) => i !== index));
@@ -31,7 +33,7 @@ const SessionModal = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     const validTasks = tasks.filter(task => task.name.trim());
     if (sessionName.trim() && validTasks.length > 0) {
       const sessionData = {
@@ -42,7 +44,7 @@ const SessionModal = () => {
           timerSeconds: task.duration * 60
         }))
       };
-      
+
       addSession(sessionData);
       setSessionName("");
       setTasks([{ name: "", duration: 25, priority: "medium" }]);
@@ -233,6 +235,9 @@ const SessionModal = () => {
           <div className="flex gap-3">
             <button
               type="submit"
+              onClick={() => {
+                navigate("/session")
+              }}
               disabled={!sessionName.trim() || tasks.filter(t => t.name.trim()).length === 0}
               className="flex-1 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 disabled:from-gray-300 disabled:to-gray-400 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:transform-none transform hover:scale-105 flex items-center justify-center gap-2"
             >

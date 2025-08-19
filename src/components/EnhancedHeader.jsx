@@ -76,8 +76,8 @@ const CommandPaletteModal = ({ isOpen, onClose, theme, onCommand }) => {
       {/* Modal */}
       <div className="fixed top-20 left-1/2 transform -translate-x-1/2 w-96 z-[99999] transition-all duration-150">
         <div className={`rounded-2xl shadow-2xl border backdrop-blur-xl ${theme === 'dark'
-            ? 'bg-gray-800/95 border-gray-700/50'
-            : 'bg-white/95 border-white/30'
+          ? 'bg-gray-800/95 border-gray-700/50'
+          : 'bg-white/95 border-white/30'
           }`}>
           {/* Header */}
           <div className={`px-4 py-3 border-b ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-200/50'
@@ -89,8 +89,8 @@ const CommandPaletteModal = ({ isOpen, onClose, theme, onCommand }) => {
               <button
                 onClick={onClose}
                 className={`p-1 rounded-lg transition-colors duration-200 ${theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,8 +108,8 @@ const CommandPaletteModal = ({ isOpen, onClose, theme, onCommand }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full px-4 py-3 rounded-lg border transition-colors duration-200 ${theme === 'dark'
-                  ? 'bg-gray-700/50 border-gray-600 focus:border-indigo-400 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50'
-                  : 'bg-white/50 border-gray-200 focus:border-indigo-500 text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
+                ? 'bg-gray-700/50 border-gray-600 focus:border-indigo-400 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50'
+                : 'bg-white/50 border-gray-200 focus:border-indigo-500 text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
                 }`}
               autoFocus
             />
@@ -314,12 +314,12 @@ const EnhancedHeader = () => {
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
                   className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${activeTab === tab.id
-                      ? theme === 'dark'
-                        ? 'text-white bg-white/10 border border-white/20'
-                        : 'text-indigo-600 bg-indigo-50 border border-indigo-200'
-                      : theme === 'dark'
-                        ? 'text-gray-400 hover:text-white hover:bg-white/5'
-                        : 'text-gray-600 hover:text-indigo-600 hover:bg-gray-50'
+                    ? theme === 'dark'
+                      ? 'text-white bg-white/10 border border-white/20'
+                      : 'text-indigo-600 bg-indigo-50 border border-indigo-200'
+                    : theme === 'dark'
+                      ? 'text-gray-400 hover:text-white hover:bg-white/5'
+                      : 'text-gray-600 hover:text-indigo-600 hover:bg-gray-50'
                     }`}
                 >
                   <span>{tab.icon}</span>

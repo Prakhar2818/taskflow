@@ -14,6 +14,7 @@ import SessionsPage from "./pages/SessionsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import SettingsPage from "./pages/SettingsPage";
 import EnhancedHeader from "./components/EnhancedHeader";
+import SessionTimerPage from "./pages/SessionTimerPage";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -66,8 +67,8 @@ const DashboardPage = () => {
 
   return (
     <div className={`min-h-screen relative overflow-hidden transition-colors duration-300 ${theme === 'dark'
-        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
-        : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100'
+      ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
+      : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100'
       }`}>
 
       {/* Shared background mesh overlay */}
@@ -190,8 +191,8 @@ const DashboardPage = () => {
                   <div
                     key={feature.label}
                     className={`p-4 backdrop-blur-sm border rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group hover:scale-105 ${theme === 'dark'
-                        ? 'bg-white/5 border-white/20'
-                        : 'bg-white/60 border-white/40'
+                      ? 'bg-white/5 border-white/20'
+                      : 'bg-white/60 border-white/40'
                       }`}
                   >
                     <div className="text-3xl mb-2 transform group-hover:scale-110 transition-transform duration-300">
@@ -293,8 +294,17 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/session"
+              element={
+                <ProtectedRoute>
+                  <SessionTimerPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
           </Routes>
         </Router>
       </ThemeProvider>

@@ -1,4 +1,4 @@
-// context/taskContext.js - FIXED VERSION
+// context/taskContext.js - FIXED VERSION WITH REPORT MODAL STATE
 import React, { createContext, useState, useContext, useCallback, useEffect } from "react";
 
 const TaskContext = createContext();
@@ -25,6 +25,11 @@ export const TaskProvider = ({ children }) => {
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
   const [currentTaskForCompletion, setCurrentTaskForCompletion] = useState(null);
+  
+  // ✅ ADD THESE MISSING STATE VARIABLES FOR REPORT MODAL
+  const [showTaskReportModal, setShowTaskReportModal] = useState(false);
+  const [currentTaskForReport, setCurrentTaskForReport] = useState(null);
+  
   const [activeTask, setActiveTask] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
   const [currentSessionTaskIndex, setCurrentSessionTaskIndex] = useState(0);
@@ -118,6 +123,32 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  // ✅ ADD TASK REPORT FUNCTION (for AutoTaskReportModal)
+  const addTaskReport = useCallback((report) => {
+    const newReport = {
+      ...report,
+      id: Date.now(),
+      reportedAt: new Date().toISOString()
+    };
+    
+    setTaskCompletionReports(prev => [...prev, newReport]);
+    
+    if (activeSession && report.sessionId) {
+      setActiveSession(prev => ({
+        ...prev,
+        taskReports: [...(prev.taskReports || []), newReport]
+      }));
+      
+      setSessions(prev => prev.map(session => 
+        session.id === report.sessionId 
+          ? { ...session, taskReports: [...(session.taskReports || []), newReport] }
+          : session
+      ));
+    }
+    
+    console.log('Task report added:', newReport);
+  }, [activeSession]);
+
   // Complete session function
   const completeSession = useCallback(() => {
     if (!activeSession) return;
@@ -168,7 +199,7 @@ export const TaskProvider = ({ children }) => {
     
     const updatedSession = {
       ...activeSession,
-      completedTasks: activeSession.completedTasks + 1
+      completedTasks: (activeSession.completedTasks || 0) + 1
     };
     
     setActiveSession(updatedSession);
@@ -369,7 +400,7 @@ export const TaskProvider = ({ children }) => {
         id: Date.now(),
         sessionId: newSession.id,
         sessionIndex: 0,
-        timerSeconds: newSession.tasks.duration * 60
+        timerSeconds: newSession.tasks[0].duration * 60 // ✅ FIXED: Use first task duration
       };
       setActiveTask(firstTask);
       // **FIXED: Don't set timer state here - let Timer component handle it**
@@ -539,6 +570,14 @@ export const TaskProvider = ({ children }) => {
       showTaskCompletionModal,
       setShowTaskCompletionModal,
       currentTaskForCompletion,
+      
+      // ✅ ADD THESE TO THE PROVIDER VALUE
+      showTaskReportModal,
+      setShowTaskReportModal,
+      currentTaskForReport,
+      setCurrentTaskForReport,
+      addTaskReport, // ✅ Add this function too
+      
       activeTask,
       setActiveTask,
       setActiveTaskById,
