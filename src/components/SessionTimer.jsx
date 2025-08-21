@@ -1,13 +1,16 @@
-// components/SessionTimer.jsx
-import React, { useState, useEffect } from 'react';
+// components/SessionTimer.jsx - FIXED TO PREVENT MULTIPLE API CALLS
+import React, { useState, useEffect, useRef } from 'react';
 import { useTaskContext } from '../context/taskContext';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const SessionTimer = () => {
   const {
     activeSession,
     currentSessionTaskIndex = 0,
     sessionTimerState = {},
-    timerState = {}
+    timerState = {},
+    updateActiveSession
   } = useTaskContext();
 
   const {
@@ -23,65 +26,157 @@ const SessionTimer = () => {
     isRunning: taskIsRunning = false
   } = timerState || {};
 
-  const [currentSessionTime, setCurrentSessionTime] = useState(0);
+  const navigate = useNavigate();
 
-  // Calculate total session time from tasks if not available from state
+  const [currentSessionTime, setCurrentSessionTime] = useState(0);
+  const [isUpdatingSession, setIsUpdatingSession] = useState(false);
+
+  // ✅ ADD REFS TO PREVENT MULTIPLE EXECUTIONS
+  const completionHandledRef = useRef(false);
+  const autoSaveIntervalRef = useRef(null);
+  const updateInProgressRef = useRef(false);
+  const sessionIdRef = useRef(null);
+
+  const API_BASE_URL = import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
+  // ✅ RESET FLAGS WHEN SESSION CHANGES
+  useEffect(() => {
+    if (activeSession?._id !== sessionIdRef.current) {
+      completionHandledRef.current = false;
+      updateInProgressRef.current = false;
+      sessionIdRef.current = activeSession?._id || null;
+      console.log('SessionTimer: New session, resetting flags');
+    }
+  }, [activeSession?._id]);
+
+  // Calculate total session time from tasks
   const calculateTotalSessionTime = () => {
     if (!activeSession?.tasks) return 0;
     return activeSession.tasks.reduce((total, task) => total + (task.duration * 60 || 0), 0);
   };
 
-  // **NEW: Calculate remaining time for incomplete tasks only**
-  const calculateRemainingTimeForIncompleteTasks = () => {
-    if (!activeSession?.tasks) return 0;
-    
-    let remainingTime = 0;
-    
-    // Add time for current task (if not completed)
-    if (currentSessionTaskIndex < activeSession.tasks.length && taskIsRunning) {
-      remainingTime += remainingTime; // Current task remaining time
-    } else if (currentSessionTaskIndex < activeSession.tasks.length) {
-      // If current task hasn't started, add full duration
-      remainingTime += (activeSession.tasks[currentSessionTaskIndex]?.duration || 0) * 60;
+  // ✅ IMPROVED: Update Session API with duplicate prevention
+  const updateSessionAPI = async (updates, showSuccess = false) => {
+    if (!activeSession?._id || isUpdatingSession || updateInProgressRef.current) {
+      console.log('SessionTimer: Update already in progress, skipping...');
+      return null;
     }
-    
-    // Add time for future tasks
-    for (let i = currentSessionTaskIndex + 1; i < activeSession.tasks.length; i++) {
-      remainingTime += (activeSession.tasks[i]?.duration || 0) * 60;
+
+    updateInProgressRef.current = true;
+    setIsUpdatingSession(true);
+
+    try {
+      const token = localStorage.getItem('taskflow-token');
+      console.log(`📡 SessionTimer: Updating session ${activeSession._id}:`, updates);
+
+      const response = await axios.put(`${API_BASE_URL}/api/sessions/${activeSession._id}`, updates, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.success) {
+        console.log('✅ SessionTimer: Session updated successfully');
+
+        if (showSuccess) {
+          console.log('🎉 Session completed via SessionTimer!');
+        }
+
+        if (updateActiveSession) {
+          updateActiveSession(response.data.data.session);
+        }
+
+        return response.data.data.session;
+      }
+    } catch (error) {
+      console.error('❌ SessionTimer: Error updating session:', error);
+    } finally {
+      setIsUpdatingSession(false);
+      updateInProgressRef.current = false;
     }
-    
-    return remainingTime;
+    return null;
   };
 
-  // **IMPROVED: Better remaining time calculation**
+  // ✅ Session Start Handler
+  const handleSessionStart = async () => {
+    if (activeSession?.status === 'pending') {
+      await updateSessionAPI({
+        status: 'completed',
+        startedAt: new Date()
+      });
+    }
+  };
+
+  // ✅ SINGLE Session Completion Handler with prevention
+  const handleSessionComplete = async () => {
+    if (completionHandledRef.current || !activeSession || activeSession.status === 'completed') {
+      console.log('SessionTimer: Session completion already handled or session already completed');
+      return;
+    }
+
+    console.log('SessionTimer: Handling session completion');
+    completionHandledRef.current = true;
+
+    const completionData = {
+      status: 'completed',
+      actualTime: currentSessionTime,
+      completedAt: new Date(),
+      completedTasks: activeSession.tasks?.length || 0
+    };
+
+    const updatedSession = await updateSessionAPI(completionData, true);
+
+    if (updatedSession) {
+      console.log('✅ SessionTimer: Session completed, navigating to dashboard in 2 seconds');
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+    }
+  };
+
+  // ✅ Session Cancellation Handler
+  const handleSessionCancel = async () => {
+    const confirmCancel = window.confirm('Are you sure you want to cancel this session?');
+
+    if (confirmCancel && activeSession?.status !== 'completed') {
+      await updateSessionAPI({
+        status: 'cancelled',
+        actualTime: currentSessionTime,
+        completedAt: new Date()
+      });
+
+      navigate('/dashboard');
+    }
+  };
+
+  // ✅ Better remaining time calculation
   const getSmartRemainingTime = () => {
     if (!activeSession?.tasks) return 0;
-    
+
     let totalRemainingTime = 0;
-    
+
     // Add remaining time for current task
     if (currentSessionTaskIndex < activeSession.tasks.length) {
       if (taskIsRunning && remainingTime > 0) {
-        // If task is running, use actual remaining time
         totalRemainingTime += remainingTime;
       } else {
-        // If task hasn't started, use full duration
         totalRemainingTime += (activeSession.tasks[currentSessionTaskIndex]?.duration || 0) * 60;
       }
     }
-    
+
     // Add full duration for all future tasks
     for (let i = currentSessionTaskIndex + 1; i < activeSession.tasks.length; i++) {
       totalRemainingTime += (activeSession.tasks[i]?.duration || 0) * 60;
     }
-    
+
     return totalRemainingTime;
   };
 
   // Use calculated total if sessionTimerState doesn't have it
   const effectiveTotalSessionTime = totalSessionTime > 0 ? totalSessionTime : calculateTotalSessionTime();
 
-  // Initialize session time when component mounts or session changes
+  // ✅ SIMPLIFIED: Initialize session time
   useEffect(() => {
     if (activeSession) {
       if (!sessionStartTime && !isRunning && elapsedTime === 0) {
@@ -95,7 +190,39 @@ const SessionTimer = () => {
     }
   }, [activeSession, sessionStartTime, isRunning, elapsedTime]);
 
-  // Update current session time every second when running
+  // ✅ SIMPLIFIED AND DEBOUNCED: Single completion detection
+  useEffect(() => {
+    if (completionHandledRef.current || !activeSession || activeSession.status === 'completed') {
+      return;
+    }
+
+    // ✅ DEBOUNCE: Only check completion every 3 seconds when timer is running
+    if (isRunning || taskIsRunning) {
+      const timeoutId = setTimeout(() => {
+        const allTasksCompleted = (activeSession.completedTasks || 0) >= (activeSession.tasks?.length || 0);
+        const timeExceeded = currentSessionTime >= effectiveTotalSessionTime && effectiveTotalSessionTime > 0;
+        const noTimeRemaining = getSmartRemainingTime() <= 0;
+
+        if (allTasksCompleted || timeExceeded || (noTimeRemaining && remainingTime <= 0)) {
+          console.log('SessionTimer: Session completion detected via debounced check');
+          handleSessionComplete();
+        }
+      }, 3000); // ✅ Check every 3 seconds instead of every render
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    currentSessionTime,
+    effectiveTotalSessionTime,
+    activeSession?.completedTasks,
+    activeSession?.tasks?.length,
+    activeSession?.status,
+    isRunning,
+    taskIsRunning,
+    remainingTime
+  ]);
+
+  // ✅ FIXED: Update current session time with proper cleanup
   useEffect(() => {
     let interval;
 
@@ -110,8 +237,53 @@ const SessionTimer = () => {
       }, 1000);
     }
 
-    return () => clearInterval(interval);
-  }, [isRunning, taskIsRunning, sessionStartTime, elapsedTime, activeSession]);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isRunning, taskIsRunning, sessionStartTime, elapsedTime, activeSession?._id]);
+
+  // ✅ IMPROVED: Auto-save with proper cleanup and prevention
+  useEffect(() => {
+    if (!activeSession || activeSession.status === 'completed') {
+      // ✅ CLEANUP existing interval
+      if (autoSaveIntervalRef.current) {
+        clearInterval(autoSaveIntervalRef.current);
+        autoSaveIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // ✅ CLEANUP previous interval before creating new one
+    if (autoSaveIntervalRef.current) {
+      clearInterval(autoSaveIntervalRef.current);
+    }
+
+    // ✅ CREATE new auto-save interval
+    autoSaveIntervalRef.current = setInterval(async () => {
+      if ((isRunning || taskIsRunning) && currentSessionTime > 0 && !updateInProgressRef.current) {
+        console.log('💾 Auto-saving session progress...');
+        await updateSessionAPI({
+          actualTime: currentSessionTime
+        });
+      }
+    }, 5 * 60 * 1000); // ✅ Auto-save every 5 minutes instead of 2
+
+    return () => {
+      if (autoSaveIntervalRef.current) {
+        clearInterval(autoSaveIntervalRef.current);
+        autoSaveIntervalRef.current = null;
+      }
+    };
+  }, [activeSession?._id, activeSession?.status, isRunning, taskIsRunning]);
+
+  // ✅ Start session when timer starts
+  useEffect(() => {
+    if ((isRunning || taskIsRunning) && activeSession?.status === 'pending') {
+      handleSessionStart();
+    }
+  }, [isRunning, taskIsRunning, activeSession?.status]);
 
   // Alternative: Calculate session time based on task progress
   const getAlternativeSessionTime = () => {
@@ -152,20 +324,8 @@ const SessionTimer = () => {
     return Math.min((displayTime / effectiveTotalSessionTime) * 100, 100);
   };
 
-  // **FIXED: Use smart remaining time calculation**
   const getRemainingTime = () => {
     return getSmartRemainingTime();
-  };
-
-  const getTaskProgressInSession = () => {
-    if (!activeSession?.tasks) return [];
-
-    return activeSession.tasks.map((task, index) => ({
-      ...task,
-      isCompleted: index < (activeSession.completedTasks || 0),
-      isCurrent: index === currentSessionTaskIndex,
-      isUpcoming: index > currentSessionTaskIndex
-    }));
   };
 
   const getOverallStatus = () => {
@@ -179,16 +339,6 @@ const SessionTimer = () => {
     } else {
       return { status: 'ontrack', message: 'On track 🎯', color: 'text-blue-600' };
     }
-  };
-
-  const getPriorityEmoji = (priority) => {
-    const emojis = {
-      low: "🟢",
-      medium: "🟡",
-      high: "🔴",
-      urgent: "🚨"
-    };
-    return emojis[priority] || "⚪";
   };
 
   // Early return if no active session
@@ -212,14 +362,17 @@ const SessionTimer = () => {
           Session Timer
         </h2>
         <div className="flex items-center gap-2">
-          <div className={`w-3 h-3 rounded-full ${
-            (isRunning || taskIsRunning) ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-          }`}></div>
+          <div className={`w-3 h-3 rounded-full ${(isRunning || taskIsRunning) ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
           <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-            activeSession.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
+            activeSession.status === 'completed' ? 'bg-green-100 text-green-800' :
+            activeSession.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+            'bg-purple-100 text-purple-800'
           }`}>
             {activeSession.status || 'pending'}
           </span>
+          {isUpdatingSession && (
+            <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          )}
         </div>
       </div>
 
@@ -233,14 +386,29 @@ const SessionTimer = () => {
         </p>
       </div>
 
-      {/* Debug Info (remove in production) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mb-4 text-xs text-gray-500 bg-gray-100 p-2 rounded">
-          Debug: currentTaskIndex={currentSessionTaskIndex}, completedTasks={activeSession.completedTasks},
-          remainingTaskTime={formatTime(getSmartRemainingTime())}, 
-          taskRunning={taskIsRunning}, currentTaskRemaining={remainingTime}
-        </div>
-      )}
+      {/* Session Control Buttons */}
+      <div className="flex justify-center gap-3 mb-6">
+        {activeSession.status === 'in-progress' && (
+          <>
+            <button
+              onClick={handleSessionComplete}
+              disabled={isUpdatingSession || completionHandledRef.current}
+              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium disabled:opacity-50 flex items-center gap-2"
+            >
+              <span>✅</span>
+              Complete Session
+            </button>
+            <button
+              onClick={handleSessionCancel}
+              disabled={isUpdatingSession}
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium disabled:opacity-50 flex items-center gap-2"
+            >
+              <span>❌</span>
+              Cancel Session
+            </button>
+          </>
+        )}
+      </div>
 
       {/* Main Timer Display */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -269,11 +437,11 @@ const SessionTimer = () => {
           </p>
         </div>
 
-        {/* Remaining Time - FIXED */}
+        {/* Remaining Time */}
         <div className="text-center bg-white/50 rounded-xl p-4">
           <p className="text-sm font-medium text-purple-600 mb-2">Time Remaining</p>
           <p className="text-3xl font-bold text-purple-800 font-mono">
-            {formatTime(getRemainingTime())}
+            {formatTime(Math.max(0, getRemainingTime()))}
           </p>
           <p className="text-xs text-purple-600 mt-2">
             {Math.max(0, activeSession.tasks.length - (activeSession.completedTasks || 0))} tasks left
@@ -313,7 +481,7 @@ const SessionTimer = () => {
           <div>
             <p className="text-xs text-purple-600">Avg Task Time</p>
             <p className="text-lg font-bold text-purple-800">
-              {activeSession.tasks.length > 0 
+              {activeSession.tasks.length > 0
                 ? Math.round(effectiveTotalSessionTime / activeSession.tasks.length / 60)
                 : 0}min
             </p>
@@ -325,19 +493,36 @@ const SessionTimer = () => {
             </p>
           </div>
           <div>
-            <p className="text-xs text-purple-600">In Progress</p>
+            <p className="text-xs text-purple-600">Status</p>
             <p className="text-lg font-bold text-blue-600">
-              {activeSession.status === 'completed' ? 0 : 1}
+              {activeSession.status || 'Pending'}
             </p>
           </div>
           <div>
-            <p className="text-xs text-purple-600">Remaining</p>
+            <p className="text-xs text-purple-600">Efficiency</p>
             <p className="text-lg font-bold text-orange-600">
-              {Math.max(0, activeSession.tasks.length - (activeSession.completedTasks || 0) - (activeSession.status === 'completed' ? 0 : 1))}
+              {effectiveTotalSessionTime > 0
+                ? Math.round((effectiveTotalSessionTime / Math.max(displayTime, 1)) * 100)
+                : 0}%
             </p>
           </div>
         </div>
       </div>
+
+      {/* Debug Info (remove in production) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-4 text-xs text-gray-500 bg-gray-100 p-2 rounded">
+          <div>Debug Info:</div>
+          <div>Session ID: {activeSession._id}</div>
+          <div>Status: {activeSession.status}</div>
+          <div>Current Time: {formatTime(currentSessionTime)}</div>
+          <div>Remaining: {formatTime(getRemainingTime())}</div>
+          <div>Task Running: {taskIsRunning ? 'Yes' : 'No'}</div>
+          <div>Session Running: {isRunning ? 'Yes' : 'No'}</div>
+          <div>Updating: {isUpdatingSession ? 'Yes' : 'No'}</div>
+          <div>Completion Handled: {completionHandledRef.current ? 'Yes' : 'No'}</div>
+        </div>
+      )}
     </div>
   );
 };

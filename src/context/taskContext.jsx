@@ -1,38 +1,30 @@
-// context/taskContext.js - FIXED VERSION WITH REPORT MODAL STATE
+// context/taskContext.js - FIXED WITH EXTENSIVE DEBUGGING
 import React, { createContext, useState, useContext, useCallback, useEffect } from "react";
+import axios from "axios";
 
 const TaskContext = createContext();
 
-const STORAGE_KEYS = {
-  TASKS: 'taskflow_tasks',
-  SESSIONS: 'taskflow_sessions',
-  TASK_COMPLETION_REPORTS: 'taskflow_task_completion_reports',
-  SESSION_COMPLETION_REPORTS: 'taskflow_session_completion_reports',
-  ACTIVE_TASK: 'taskflow_active_task',
-  ACTIVE_SESSION: 'taskflow_active_session',
-  SESSION_INDEX: 'taskflow_session_index',
-  TIMER_STATE: 'taskflow_timer_state',
-  SESSION_TIMER_STATE: 'taskflow_session_timer_state',
-  LAST_SAVE: 'taskflow_last_save'
-};
-
 export const TaskProvider = ({ children }) => {
+  // ✅ Core State (no localStorage)
   const [tasks, setTasks] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [taskCompletionReports, setTaskCompletionReports] = useState([]);
   const [sessionCompletionReports, setSessionCompletionReports] = useState([]);
+
+  // ✅ UI State
   const [showModal, setShowModal] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
-  const [currentTaskForCompletion, setCurrentTaskForCompletion] = useState(null);
-  
-  // ✅ ADD THESE MISSING STATE VARIABLES FOR REPORT MODAL
   const [showTaskReportModal, setShowTaskReportModal] = useState(false);
+  const [currentTaskForCompletion, setCurrentTaskForCompletion] = useState(null);
   const [currentTaskForReport, setCurrentTaskForReport] = useState(null);
-  
+
+  // ✅ Active Items
   const [activeTask, setActiveTask] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
   const [currentSessionTaskIndex, setCurrentSessionTaskIndex] = useState(0);
+
+  // ✅ Timer State (kept in context)
   const [timerState, setTimerState] = useState({
     isRunning: false,
     remainingTime: 0,
@@ -44,154 +36,168 @@ export const TaskProvider = ({ children }) => {
     totalSessionTime: 0,
     sessionStartTime: null
   });
+
+  // ✅ API State
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Load data from localStorage on mount
-  useEffect(() => {
-    loadFromLocalStorage();
-  }, []);
+  // ✅ API Configuration
+  const API_BASE_URL = import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
-  // **FIXED: Reduced auto-save frequency to prevent conflicts**
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      saveToLocalStorage();
-    }, 2000); // Increased from 500ms to 2000ms
-    return () => clearTimeout(timeoutId);
-  }, [tasks, sessions, activeTask, activeSession, currentSessionTaskIndex, taskCompletionReports, sessionCompletionReports]);
-  // **REMOVED: sessionTimerState and timerState from auto-save dependencies**
-
-  // Utility functions for localStorage
-  const saveToStorage = (key, data) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (error) {
-      console.error(`Failed to save ${key} to localStorage:`, error);
-    }
+  // ✅ Auth Helper
+  const getAuthHeader = () => {
+    const token = localStorage.getItem("taskflow-token");
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
   };
 
-  const getFromStorage = (key, defaultValue = null) => {
+  // ✅ FETCH ALL SESSIONS FROM API
+  const fetchSessions = useCallback(async () => {
     try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : defaultValue;
-    } catch (error) {
-      console.error(`Failed to get ${key} from localStorage:`, error);
-      return defaultValue;
-    }
-  };
+      setIsLoading(true);
+      const token = localStorage.getItem('taskflow-token');
+      if (!token) return;
 
-  const loadFromLocalStorage = () => {
-    setIsLoading(true);
-    try {
-      const savedTasks = getFromStorage(STORAGE_KEYS.TASKS, []);
-      const savedSessions = getFromStorage(STORAGE_KEYS.SESSIONS, []);
-      const savedTaskReports = getFromStorage(STORAGE_KEYS.TASK_COMPLETION_REPORTS, []);
-      const savedSessionReports = getFromStorage(STORAGE_KEYS.SESSION_COMPLETION_REPORTS, []);
-      const savedActiveTask = getFromStorage(STORAGE_KEYS.ACTIVE_TASK);
-      const savedActiveSession = getFromStorage(STORAGE_KEYS.ACTIVE_SESSION);
-      const savedSessionIndex = getFromStorage(STORAGE_KEYS.SESSION_INDEX, 0);
+      console.log('📡 Fetching all sessions from API...');
 
-      if (savedTasks.length > 0) setTasks(savedTasks);
-      if (savedSessions.length > 0) setSessions(savedSessions);
-      if (savedTaskReports.length > 0) setTaskCompletionReports(savedTaskReports);
-      if (savedSessionReports.length > 0) setSessionCompletionReports(savedSessionReports);
-      if (savedActiveTask) setActiveTask(savedActiveTask);
-      if (savedActiveSession) setActiveSession(savedActiveSession);
-      setCurrentSessionTaskIndex(savedSessionIndex);
+      const response = await axios.get(`${API_BASE_URL}/api/sessions`, {
+        headers: getAuthHeader()
+      });
 
-      // **FIXED: Don't restore timer state from localStorage - let Timer component handle it**
-      console.log('Data loaded from localStorage successfully');
-    } catch (error) {
-      console.error('Failed to load data from localStorage:', error);
+      if (response.data.success) {
+        setSessions(response.data.data.sessions);
+        console.log('✅ Sessions fetched:', response.data.data.sessions.length);
+        setError(null);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching sessions:', err);
+      setError(err.response?.data?.message || err.message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [API_BASE_URL]);
 
-  const saveToLocalStorage = () => {
+  // ✅ FETCH SINGLE SESSION BY ID AND SET AS ACTIVE - FIXED WITH DEBUGGING
+  const fetchAndSetActiveSession = useCallback(async (sessionId) => {
+    console.log('🔍 fetchAndSetActiveSession called with ID:', sessionId);
+    console.log('🔍 Current activeSession before fetch:', activeSession);
+    
+    if (!sessionId || sessionId === 'undefined') {
+      console.warn('⚠️ Invalid session ID provided:', sessionId);
+      return null;
+    }
+
     try {
-      saveToStorage(STORAGE_KEYS.TASKS, tasks);
-      saveToStorage(STORAGE_KEYS.SESSIONS, sessions);
-      saveToStorage(STORAGE_KEYS.TASK_COMPLETION_REPORTS, taskCompletionReports);
-      saveToStorage(STORAGE_KEYS.SESSION_COMPLETION_REPORTS, sessionCompletionReports);
-      saveToStorage(STORAGE_KEYS.ACTIVE_TASK, activeTask);
-      saveToStorage(STORAGE_KEYS.ACTIVE_SESSION, activeSession);
-      saveToStorage(STORAGE_KEYS.SESSION_INDEX, currentSessionTaskIndex);
-      saveToStorage(STORAGE_KEYS.LAST_SAVE, new Date().toISOString());
-      // **REMOVED: Don't save timer states to localStorage**
-    } catch (error) {
-      console.error('Failed to save data to localStorage:', error);
+      setIsLoading(true);
+      const token = localStorage.getItem('taskflow-token');
+      if (!token) {
+        console.error('❌ No token found');
+        return null;
+      }
+
+      console.log(`📡 Making API call to: ${API_BASE_URL}/api/sessions/${sessionId}`);
+
+      const response = await axios.get(`${API_BASE_URL}/api/sessions/${sessionId}`, {
+        headers: getAuthHeader()
+      });
+
+      console.log('📡 API Response:', response.data);
+
+      if (response.data.success) {
+        const sessionData = response.data.data.session;
+        
+        console.log('🔄 About to set activeSession with data:', sessionData);
+        console.log('🔍 Session ID from response:', sessionData._id);
+        console.log('🔍 Session name:', sessionData.name);
+        
+        // ✅ Set the active session
+        setActiveSession(sessionData);
+        
+        console.log('✅ setActiveSession called - React should re-render now');
+        
+        setError(null);
+        return sessionData;
+      } else {
+        console.error('❌ API response not successful:', response.data);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching session:', err);
+      console.error('❌ Error details:', err.response?.data);
+      setError(err.response?.data?.message || err.message);
+      setActiveSession(null);
+    } finally {
+      setIsLoading(false);
     }
-  };
+    return null;
+  }, [API_BASE_URL]);
 
-  // ✅ ADD TASK REPORT FUNCTION (for AutoTaskReportModal)
-  const addTaskReport = useCallback((report) => {
-    const newReport = {
-      ...report,
-      id: Date.now(),
-      reportedAt: new Date().toISOString()
-    };
-    
-    setTaskCompletionReports(prev => [...prev, newReport]);
-    
-    if (activeSession && report.sessionId) {
-      setActiveSession(prev => ({
-        ...prev,
-        taskReports: [...(prev.taskReports || []), newReport]
-      }));
-      
-      setSessions(prev => prev.map(session => 
-        session.id === report.sessionId 
-          ? { ...session, taskReports: [...(session.taskReports || []), newReport] }
-          : session
-      ));
+  // ✅ CREATE SESSION VIA API
+  const createSession = useCallback(async (sessionData) => {
+    try {
+      setIsLoading(true);
+      console.log('📡 Creating session via API...');
+
+      const response = await axios.post(`${API_BASE_URL}/api/sessions`, sessionData, {
+        headers: getAuthHeader()
+      });
+
+      if (response.data.success) {
+        const newSession = response.data.data.session;
+        setSessions(prev => [...prev, newSession]);
+        console.log('✅ Session created via API:', newSession._id);
+        setError(null);
+        return newSession;
+      }
+    } catch (err) {
+      console.error('❌ Error creating session:', err);
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setIsLoading(false);
     }
-    
-    console.log('Task report added:', newReport);
-  }, [activeSession]);
+    return null;
+  }, [API_BASE_URL]);
 
-  // Complete session function
-  const completeSession = useCallback(() => {
-    if (!activeSession) return;
-
-    const completedSession = {
-      ...activeSession,
-      status: "completed",
-      completedTasks: activeSession.tasks.length,
-      completedAt: new Date().toISOString(),
-      totalTimeSpent: sessionTimerState.elapsedTime + 
-        (sessionTimerState.sessionStartTime ? 
-          Math.floor((Date.now() - sessionTimerState.sessionStartTime) / 1000) : 0)
-    };
-    
-    setActiveSession(completedSession);
-    setSessions(prev => prev.map(s => 
-      s.id === completedSession.id ? completedSession : s
-    ));
-    
-    setActiveTask(null);
+  // ✅ CLEAR ACTIVE SESSION
+  const clearActiveSession = useCallback(() => {
+    console.log('🧹 Clearing active session...');
+    setActiveSession(null);
     setCurrentSessionTaskIndex(0);
+    setActiveTask(null);
     setTimerState({
       isRunning: false,
       remainingTime: 0,
       totalTime: 0
     });
-    
     setSessionTimerState({
       isRunning: false,
       elapsedTime: 0,
       totalSessionTime: 0,
       sessionStartTime: null
     });
-    
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Session Complete!', {
-        body: `Congratulations! You've completed "${activeSession.name}" in ${Math.floor(completedSession.totalTimeSpent / 60)} minutes`,
-        icon: '🎉'
-      });
-    }
-  }, [activeSession, sessionTimerState]);
+    console.log('🧹 Active session cleared');
+  }, []);
 
-  // Complete session task function
+  // ✅ DIRECT SET ACTIVE SESSION (for debugging/manual setting)
+  const setActiveSessionDirect = useCallback((sessionData) => {
+    console.log('🎯 Direct setActiveSession called with:', sessionData);
+    setActiveSession(sessionData);
+  }, []);
+
+  // ✅ ADD TASK REPORT (Local state)
+  const addTaskReport = useCallback((report) => {
+    const newReport = {
+      ...report,
+      id: Date.now(),
+      reportedAt: new Date().toISOString()
+    };
+
+    setTaskCompletionReports(prev => [...prev, newReport]);
+    console.log('✅ Task report added:', newReport);
+  }, []);
+
+  // ✅ SESSION TASK COMPLETION
   const completeSessionTask = useCallback(() => {
     if (!activeSession || !activeTask) return;
 
@@ -210,19 +216,105 @@ export const TaskProvider = ({ children }) => {
       const nextTask = {
         ...activeSession.tasks[nextIndex],
         id: Date.now() + nextIndex,
-        sessionId: activeSession.id,
+        sessionId: activeSession._id,
         sessionIndex: nextIndex,
         timerSeconds: activeSession.tasks[nextIndex].duration * 60
       };
       
       setActiveTask(nextTask);
-      // **FIXED: Don't reset timer state here - let Timer component handle it**
     } else {
-      completeSession();
+      // Complete entire session
+      const completedSession = {
+        ...updatedSession,
+        status: "completed",
+        completedAt: new Date().toISOString(),
+        totalTimeSpent: sessionTimerState.elapsedTime
+      };
+      
+      setActiveSession(completedSession);
+      clearActiveSession();
+      
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Session Complete!', {
+          body: `Congratulations! You've completed "${activeSession.name}" in ${Math.floor(completedSession.totalTimeSpent / 60)} minutes`,
+          icon: '🎉'
+        });
+      }
     }
-  }, [activeSession, activeTask, currentSessionTaskIndex, completeSession]);
+  }, [activeSession, activeTask, currentSessionTaskIndex, sessionTimerState, clearActiveSession]);
 
-  // Other functions...
+  // ✅ TIMER STATE UPDATES
+  const updateTimerState = useCallback((newState) => {
+    console.log("Context: updateTimerState called with:", newState);
+    setTimerState(prev => ({ ...prev, ...newState }));
+  }, []);
+
+  const updateSessionTimerState = useCallback((newState) => {
+    console.log("Context: updateSessionTimerState called with:", newState);
+    setSessionTimerState(prev => ({ ...prev, ...newState }));
+  }, []);
+
+  // ✅ SESSION TIMER FUNCTIONS
+  const startSessionTimer = useCallback(() => {
+    if (activeSession && !sessionTimerState.sessionStartTime) {
+      setSessionTimerState(prev => ({
+        ...prev,
+        isRunning: true,
+        sessionStartTime: Date.now()
+      }));
+    }
+  }, [activeSession, sessionTimerState.sessionStartTime]);
+
+  const pauseSessionTimer = useCallback(() => {
+    if (sessionTimerState.isRunning && sessionTimerState.sessionStartTime) {
+      const elapsedTime = Math.floor((Date.now() - sessionTimerState.sessionStartTime) / 1000);
+      setSessionTimerState(prev => ({
+        ...prev,
+        isRunning: false,
+        elapsedTime: prev.elapsedTime + elapsedTime,
+        sessionStartTime: null
+      }));
+    }
+  }, [sessionTimerState.isRunning, sessionTimerState.sessionStartTime]);
+
+  // ✅ LEGACY FUNCTIONS (for compatibility)
+  const addTask = useCallback((task) => {
+    const newTask = {
+      ...task,
+      status: "pending",
+      id: Date.now(),
+      timeSpent: 0,
+      sessions: [],
+      createdAt: new Date().toISOString()
+    };
+    setTasks(prev => [...prev, newTask]);
+  }, []);
+
+  const addSession = useCallback((sessionData) => {
+    // Use createSession API instead
+    return createSession(sessionData);
+  }, [createSession]);
+
+  const updateStatus = useCallback((id, status) => {
+    setTasks((prev) =>
+      prev.map((task) => (task.id === id ? { ...task, status, updatedAt: new Date().toISOString() } : task))
+    );
+  }, []);
+
+  const setActiveTaskById = useCallback((taskId) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setActiveTask(task);
+      setActiveSession(null);
+      setCurrentSessionTaskIndex(0);
+    }
+  }, [tasks]);
+
+  const clearActiveTask = useCallback(() => {
+    clearActiveSession(); // This already clears everything
+  }, [clearActiveSession]);
+
+  // ✅ COMPLETION HANDLERS
   const showTaskCompletionModalForTask = useCallback((taskData) => {
     setCurrentTaskForCompletion(taskData);
     setShowTaskCompletionModal(true);
@@ -234,20 +326,14 @@ export const TaskProvider = ({ children }) => {
       id: Date.now(),
       reportedAt: new Date().toISOString()
     };
-    
+
     setTaskCompletionReports(prev => [...prev, newReport]);
-    
+
     if (activeSession && report.sessionId) {
       setActiveSession(prev => ({
         ...prev,
         taskReports: [...(prev.taskReports || []), newReport]
       }));
-      
-      setSessions(prev => prev.map(session => 
-        session.id === report.sessionId 
-          ? { ...session, taskReports: [...(session.taskReports || []), newReport] }
-          : session
-      ));
     }
   }, [activeSession]);
 
@@ -269,342 +355,129 @@ export const TaskProvider = ({ children }) => {
     showTaskCompletionModalForTask(completionData);
   }, [activeTask, activeSession, showTaskCompletionModalForTask]);
 
-  const processTaskCompletion = useCallback((completionReport) => {
-    if (!completionReport) return;
-
-    const taskStatus = completionReport.isCompleted ? "completed" : "incomplete";
-    
-    if (completionReport.wasSessionTask) {
-      setTasks(prev =>
-        prev.map(task => 
-          task.id === completionReport.taskId 
-            ? { 
-                ...task, 
-                status: taskStatus,
-                timeSpent: (task.timeSpent || 0) + completionReport.actualTimeSpent,
-                completedAt: completionReport.completedAt
-              }
-            : task
-        )
-      );
-
-      if (completionReport.isCompleted) {
-        completeSessionTask();
-      } else {
-        const nextIndex = currentSessionTaskIndex + 1;
-        
-        if (nextIndex < activeSession.tasks.length) {
-          setCurrentSessionTaskIndex(nextIndex);
-          
-          const nextTask = {
-            ...activeSession.tasks[nextIndex],
-            id: Date.now() + nextIndex,
-            sessionId: activeSession.id,
-            sessionIndex: nextIndex,
-            timerSeconds: activeSession.tasks[nextIndex].duration * 60
-          };
-          
-          setActiveTask(nextTask);
-        } else {
-          completeSession();
-        }
-      }
-    } else {
-      setTasks(prev =>
-        prev.map(task => 
-          task.id === completionReport.taskId 
-            ? { 
-                ...task, 
-                status: taskStatus,
-                timeSpent: (task.timeSpent || 0) + completionReport.actualTimeSpent,
-                completedAt: completionReport.completedAt
-              }
-            : task
-        )
-      );
-      
-      setActiveTask(null);
+  // ✅ LOAD DATA ON APP START
+  useEffect(() => {
+    const token = localStorage.getItem('taskflow-token');
+    if (token) {
+      console.log('🔄 Loading data from API on app start...');
+      fetchSessions().then(() => {
+        console.log('✅ Initial data load complete');
+      });
     }
-  }, [currentSessionTaskIndex, activeSession, completeSessionTask, completeSession]);
+  }, [fetchSessions]);
 
-  // **FIXED: Simplified updateTimerState - no automatic resets**
-  const updateTimerState = useCallback((newState) => {
-    console.log("Context: updateTimerState called with:", newState);
-    setTimerState(prev => {
-      const updated = { ...prev, ...newState };
-      console.log("Context: Timer state updated from", prev, "to", updated);
-      return updated;
-    });
-  }, []);
-
-  // Session timer functions
-  const startSessionTimer = useCallback(() => {
-    if (activeSession && !sessionTimerState.sessionStartTime) {
-      setSessionTimerState(prev => ({
-        ...prev,
-        isRunning: true,
-        sessionStartTime: Date.now()
-      }));
-    }
-  }, [activeSession, sessionTimerState.sessionStartTime]);
-
-  const updateSessionTimer = useCallback(() => {
-    if (sessionTimerState.isRunning && sessionTimerState.sessionStartTime) {
-      const elapsedTime = Math.floor((Date.now() - sessionTimerState.sessionStartTime) / 1000);
-      setSessionTimerState(prev => ({
-        ...prev,
-        elapsedTime: elapsedTime
-      }));
-    }
-  }, [sessionTimerState.isRunning, sessionTimerState.sessionStartTime]);
-
-  const pauseSessionTimer = useCallback(() => {
-    if (sessionTimerState.isRunning && sessionTimerState.sessionStartTime) {
-      const elapsedTime = Math.floor((Date.now() - sessionTimerState.sessionStartTime) / 1000);
-      setSessionTimerState(prev => ({
-        ...prev,
-        isRunning: false,
-        elapsedTime: prev.elapsedTime + elapsedTime,
-        sessionStartTime: null
-      }));
-    }
-  }, [sessionTimerState.isRunning, sessionTimerState.sessionStartTime]);
-
-  const addSession = useCallback((sessionData) => {
-    const totalSessionTime = sessionData.tasks.reduce((total, task) => total + (task.duration * 60), 0);
-    
-    const newSession = {
-      ...sessionData,
-      id: Date.now(),
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      completedTasks: 0,
-      totalTime: totalSessionTime,
-      taskReports: []
-    };
-    
-    setSessions(prev => [...prev, newSession]);
-    setActiveSession(newSession);
-    setCurrentSessionTaskIndex(0);
-    
-    setSessionTimerState({
-      isRunning: false,
-      elapsedTime: 0,
-      totalSessionTime: totalSessionTime,
-      sessionStartTime: null
-    });
-    
-    if (newSession.tasks.length > 0) {
-      const firstTask = {
-        ...newSession.tasks[0],
-        id: Date.now(),
-        sessionId: newSession.id,
-        sessionIndex: 0,
-        timerSeconds: newSession.tasks[0].duration * 60 // ✅ FIXED: Use first task duration
-      };
-      setActiveTask(firstTask);
-      // **FIXED: Don't set timer state here - let Timer component handle it**
-    }
-  }, []);
-
-  // Session timer interval
+  // ✅ SESSION TIMER INTERVAL
   useEffect(() => {
     let interval;
-    if (sessionTimerState.isRunning) {
-      interval = setInterval(updateSessionTimer, 1000);
+    if (sessionTimerState.isRunning && sessionTimerState.sessionStartTime) {
+      interval = setInterval(() => {
+        const elapsedTime = Math.floor((Date.now() - sessionTimerState.sessionStartTime) / 1000);
+        setSessionTimerState(prev => ({
+          ...prev,
+          elapsedTime: prev.elapsedTime + 1
+        }));
+      }, 1000);
     }
     return () => clearInterval(interval);
-  }, [sessionTimerState.isRunning, updateSessionTimer]);
+  }, [sessionTimerState.isRunning, sessionTimerState.sessionStartTime]);
 
-  // Rest of existing functions...
-  const addTask = useCallback((task) => {
-    const newTask = { 
-      ...task, 
-      status: "pending", 
-      id: Date.now(),
-      timeSpent: 0,
-      sessions: [],
-      createdAt: new Date().toISOString()
-    };
-    setTasks(prev => [...prev, newTask]);
-  }, []);
-
-  const updateStatus = useCallback((id, status) => {
-    setTasks((prev) =>
-      prev.map((task) => (task.id === id ? { ...task, status, updatedAt: new Date().toISOString() } : task))
-    );
-  }, []);
-
-  const setActiveTaskById = useCallback((taskId) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
-      setActiveTask(task);
-      setActiveSession(null);
-      setCurrentSessionTaskIndex(0);
-      // **FIXED: Don't reset timer/session states here**
+  // ✅ CLEAR ERROR AFTER 5 SECONDS
+  useEffect(() => {
+    if (error) {
+      const timeout = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(timeout);
     }
-  }, [tasks]);
+  }, [error]);
 
-  const clearActiveTask = useCallback(() => {
-    setActiveTask(null);
-    setActiveSession(null);
-    setCurrentSessionTaskIndex(0);
-    setTimerState({
-      isRunning: false,
-      remainingTime: 0,
-      totalTime: 0
-    });
-    setSessionTimerState({
-      isRunning: false,
-      elapsedTime: 0,
-      totalSessionTime: 0,
-      sessionStartTime: null
-    });
-  }, []);
-
-  const addSessionToTask = useCallback((taskId, sessionData) => {
-    setTasks(prev =>
-      prev.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              sessions: [...(task.sessions || []), sessionData],
-              timeSpent: (task.timeSpent || 0) + sessionData.duration,
-              updatedAt: new Date().toISOString()
-            }
-          : task
-      )
-    );
-  }, []);
-
-  const deleteTask = useCallback((taskId) => {
-    setTasks(prev => prev.filter(task => task.id !== taskId));
-    if (activeTask && activeTask.id === taskId) {
-      clearActiveTask();
+  // ✅ DEBUG: Track activeSession changes
+  useEffect(() => {
+    console.log('🎯 activeSession state changed to:', activeSession);
+    if (activeSession) {
+      console.log('✅ activeSession is now set with ID:', activeSession._id);
+      console.log('✅ activeSession name:', activeSession.name);
+    } else {
+      console.log('❌ activeSession is null/undefined');
     }
-  }, [activeTask, clearActiveTask]);
+  }, [activeSession]);
 
-  const clearLocalStorage = useCallback(() => {
-    try {
-      Object.values(STORAGE_KEYS).forEach(key => {
-        localStorage.removeItem(key);
-      });
-      
-      setTasks([]);
-      setSessions([]);
-      setTaskCompletionReports([]);
-      setSessionCompletionReports([]);
-      setActiveTask(null);
-      setActiveSession(null);
-      setCurrentSessionTaskIndex(0);
-      setTimerState({
-        isRunning: false,
-        remainingTime: 0,
-        totalTime: 0
-      });
-      setSessionTimerState({
-        isRunning: false,
-        elapsedTime: 0,
-        totalSessionTime: 0,
-        sessionStartTime: null
-      });
-      
-      console.log('localStorage cleared successfully');
-    } catch (error) {
-      console.error('Failed to clear localStorage:', error);
-    }
-  }, []);
 
-  const exportData = useCallback(() => {
-    const data = {
+  // ✅ CONTEXT PROVIDER VALUE
+  return (
+    <TaskContext.Provider value={{
+      // Data State
       tasks,
       sessions,
       taskCompletionReports,
       sessionCompletionReports,
+
+      // Active Items
       activeTask,
       activeSession,
       currentSessionTaskIndex,
-      exportedAt: new Date().toISOString(),
-      version: '1.2'
-    };
-    return JSON.stringify(data, null, 2);
-  }, [tasks, sessions, taskCompletionReports, sessionCompletionReports, activeTask, activeSession, currentSessionTaskIndex]);
 
-  const importData = useCallback((jsonString) => {
-    try {
-      const data = JSON.parse(jsonString);
-      
-      if (data.tasks) setTasks(data.tasks);
-      if (data.sessions) setSessions(data.sessions);
-      if (data.taskCompletionReports) setTaskCompletionReports(data.taskCompletionReports);
-      if (data.sessionCompletionReports) setSessionCompletionReports(data.sessionCompletionReports);
-      if (data.activeTask) setActiveTask(data.activeTask);
-      if (data.activeSession) setActiveSession(data.activeSession);
-      if (data.currentSessionTaskIndex !== undefined) {
-        setCurrentSessionTaskIndex(data.currentSessionTaskIndex);
-      }
-      
-      setTimeout(saveToLocalStorage, 100);
-      
-      console.log('Data imported successfully');
-      return true;
-    } catch (error) {
-      console.error('Failed to import data:', error);
-      return false;
-    }
-  }, []);
-
-  return (
-    <TaskContext.Provider value={{ 
-      tasks, 
-      sessions,
-      taskCompletionReports,
-      sessionCompletionReports,
-      addTask, 
-      updateStatus, 
-      deleteTask,
-      showModal, 
+      // UI State
+      showModal,
       setShowModal,
       showSessionModal,
       setShowSessionModal,
       showTaskCompletionModal,
       setShowTaskCompletionModal,
-      currentTaskForCompletion,
-      
-      // ✅ ADD THESE TO THE PROVIDER VALUE
       showTaskReportModal,
       setShowTaskReportModal,
+      currentTaskForCompletion,
+      setCurrentTaskForCompletion,
       currentTaskForReport,
       setCurrentTaskForReport,
-      addTaskReport, // ✅ Add this function too
-      
-      activeTask,
-      setActiveTask,
-      setActiveTaskById,
-      clearActiveTask,
-      activeSession,
-      addSession,
-      currentSessionTaskIndex,
-      completeSessionTask,
+
+      // Timer State
       timerState,
-      updateTimerState,
       sessionTimerState,
+      updateTimerState,
+      updateSessionTimerState,
+
+      // API State
+      isLoading,
+      error,
+
+      // API Functions
+      fetchSessions,
+      fetchAndSetActiveSession,
+      createSession,
+      clearActiveSession,
+
+      // Session Functions
       startSessionTimer,
       pauseSessionTimer,
-      addSessionToTask,
-      handleTimerComplete,
+      completeSessionTask,
+
+      // Local Functions
+      setActiveTask,
+      setActiveSession,
+      setActiveSessionDirect,  // ✅ Add direct setter for debugging
+      setCurrentSessionTaskIndex,
+      addTaskReport,
       addTaskCompletionReport,
-      processTaskCompletion,
-      isLoading,
-      saveToLocalStorage,
-      loadFromLocalStorage,
-      clearLocalStorage,
-      exportData,
-      importData
+      handleTimerComplete,
+
+      // Legacy Functions (for compatibility)
+      addTask,
+      addSession,
+      updateStatus,
+      setActiveTaskById,
+      clearActiveTask,
+
+      // Helper Functions
+      getAuthHeader
     }}>
       {children}
     </TaskContext.Provider>
   );
 };
 
-export const useTaskContext = () => useContext(TaskContext);
+export const useTaskContext = () => {
+  const context = useContext(TaskContext);
+  if (!context) {
+    throw new Error('useTaskContext must be used within a TaskProvider');
+  }
+  return context;
+};

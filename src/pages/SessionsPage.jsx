@@ -1,5 +1,5 @@
 // pages/SessionsPage.jsx - WITH THEME CONTEXT INTEGRATION
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TaskProvider } from "../context/taskContext";
 import { useTheme } from "../context/themeContext"; // Import theme context
@@ -7,24 +7,34 @@ import SessionTimer from "../components/SessionTimer";
 import SessionModal from "../components/SessionModal";
 import EnhancedHeader from "../components/EnhancedHeader";
 
+import { useTaskContext } from "../context/taskContext";
+
 const SessionsPageContent = () => {
   const navigate = useNavigate();
   const { theme } = useTheme(); // Get theme from context
+  const [sessionData, setSessionData] = useState([])
+
+  const { sessions, fetchSessions } = useTaskContext()
+  useEffect(() => {
+    fetchSessions()
+  }, [])
+
+  useEffect(() => {
+    setSessionData(sessions)
+  })
 
   return (
     <>
       <EnhancedHeader />
-      <div className={`min-h-screen transition-colors duration-300 ${
-        theme === "dark"
+      <div className={`min-h-screen transition-colors duration-300 ${theme === "dark"
           ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
           : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100"
-      }`}>
+        }`}>
         <div className="max-w-6xl mx-auto py-10 px-6">
           <button
             onClick={() => navigate("/dashboard")}
-            className={`flex items-center gap-2 font-medium mb-6 transition-colors ${
-              theme === "dark" ? "text-indigo-400 hover:text-indigo-200" : "text-indigo-600 hover:text-indigo-700"
-            }`}
+            className={`flex items-center gap-2 font-medium mb-6 transition-colors ${theme === "dark" ? "text-indigo-400 hover:text-indigo-200" : "text-indigo-600 hover:text-indigo-700"
+              }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -56,13 +66,6 @@ const SessionsPageContent = () => {
                   </svg>
                   New Session
                 </button>
-                <button className={`px-4 py-2 border rounded-lg transition-colors ${
-                  theme === "dark" 
-                    ? "border-gray-600 text-gray-300 hover:bg-gray-700 hover:border-gray-500" 
-                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                }`}>
-                  View History
-                </button>
               </div>
             </div>
 
@@ -70,9 +73,17 @@ const SessionsPageContent = () => {
             <div className={`rounded-3xl shadow-xl border p-8 
               ${theme === "dark" ? "bg-white/10 backdrop-blur-xl border-white/10" : "bg-white/80 backdrop-blur-xl border-white/20"}`}>
               <h2 className={`text-2xl font-bold mb-6 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
-                Active Session
+                User's Session
               </h2>
-              <SessionTimer />
+              <div>
+                {
+                  sessionData.map((item) => (
+                    <p key={item} className={`${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                      {item.name}
+                    </p>
+                  ))
+                }
+              </div>
             </div>
 
             {/* Session Stats */}
@@ -81,11 +92,10 @@ const SessionsPageContent = () => {
               <h2 className={`text-2xl font-bold mb-6 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
                 Today's Progress
               </h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className={`rounded-xl p-4 border ${
-                  theme === "dark" ? "bg-white/5 border-white/10" : "bg-white/60 border-white/40"
-                }`}>
+                <div className={`rounded-xl p-4 border ${theme === "dark" ? "bg-white/5 border-white/10" : "bg-white/60 border-white/40"
+                  }`}>
                   <div className="text-2xl mb-2">⏱️</div>
                   <h3 className={`font-semibold mb-1 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
                     Total Time
@@ -98,9 +108,8 @@ const SessionsPageContent = () => {
                   </p>
                 </div>
 
-                <div className={`rounded-xl p-4 border ${
-                  theme === "dark" ? "bg-white/5 border-white/10" : "bg-white/60 border-white/40"
-                }`}>
+                <div className={`rounded-xl p-4 border ${theme === "dark" ? "bg-white/5 border-white/10" : "bg-white/60 border-white/40"
+                  }`}>
                   <div className="text-2xl mb-2">📊</div>
                   <h3 className={`font-semibold mb-1 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
                     Sessions
@@ -113,9 +122,8 @@ const SessionsPageContent = () => {
                   </p>
                 </div>
 
-                <div className={`rounded-xl p-4 border ${
-                  theme === "dark" ? "bg-white/5 border-white/10" : "bg-white/60 border-white/40"
-                }`}>
+                <div className={`rounded-xl p-4 border ${theme === "dark" ? "bg-white/5 border-white/10" : "bg-white/60 border-white/40"
+                  }`}>
                   <div className="text-2xl mb-2">🎯</div>
                   <h3 className={`font-semibold mb-1 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
                     Efficiency

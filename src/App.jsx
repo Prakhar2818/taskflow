@@ -15,6 +15,7 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import SettingsPage from "./pages/SettingsPage";
 import EnhancedHeader from "./components/EnhancedHeader";
 import SessionTimerPage from "./pages/SessionTimerPage";
+import { TaskProvider } from "./context/taskContext";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -233,80 +234,82 @@ const App = () => {
   return (
     <AuthProvider>
       <ThemeProvider> {/* Wrap with ThemeProvider */}
-        <Router>
-          <Routes>
+        <TaskProvider>
+          <Router>
+            <Routes>
 
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/create-task"
-              element={
-                <ProtectedRoute>
-                  <CreateTaskPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/create-session"
-              element={
-                <ProtectedRoute>
-                  <CreateSessionPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tasks"
-              element={
-                <ProtectedRoute>
-                  <TasksPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/sessions"
-              element={
-                <ProtectedRoute>
-                  <SessionsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <AnalyticsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <SettingsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/session"
-              element={
-                <ProtectedRoute>
-                  <SessionTimerPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/create-task"
+                element={
+                  <ProtectedRoute>
+                    <CreateTaskPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/create-session"
+                element={
+                  <ProtectedRoute>
+                    <CreateSessionPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tasks"
+                element={
+                  <ProtectedRoute>
+                    <TasksPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sessions"
+                element={
+                  <ProtectedRoute>
+                    <SessionsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute>
+                    <AnalyticsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/session"
+                element={
+                  <ProtectedRoute>
+                    <SessionTimerPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
 
-          </Routes>
-        </Router>
+            </Routes>
+          </Router>
+        </TaskProvider>
       </ThemeProvider>
     </AuthProvider>
   );
