@@ -1,13 +1,29 @@
-// context/authContext.js - UPDATED WITH AXIOS & ENV VARIABLES
+// context/authContext.js - FIXED VERSION WITH PROPER TOKEN REFRESH
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
 
-// Configure axios instance with base URL from environment variables
+// ✅ Request queue to prevent multiple refresh calls
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
+
+// Configure axios instance
 const api = axios.create({
-  baseURL: import.meta.env.REACT_APP_API_BASE_URL ||  'http://localhost:5000/api',
-  withCredentials: true, // Include cookies in requests
+  baseURL: import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -15,12 +31,26 @@ const api = axios.create({
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('taskflow-token') || '');
-  const [refreshToken, setRefreshToken] = useState(localStorage.getItem('taskflow-refresh-token') || '');
+  const [token, setTokenState] = useState(localStorage.getItem('taskflow-token') || '');
+  const [refreshToken, setRefreshTokenState] = useState(localStorage.getItem('taskflow-refresh-token') || '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Add token to axios requests
+  // ✅ Centralized token update function
+  const updateToken = (newToken) => {
+    console.log('📝 Updating token:', newToken ? 'New token received' : 'Clearing token');
+    
+    setTokenState(newToken);
+    localStorage.setItem('taskflow-token', newToken);
+    api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+  };
+
+  const updateRefreshToken = (newRefreshToken) => {
+    setRefreshTokenState(newRefreshToken);
+    localStorage.setItem('taskflow-refresh-token', newRefreshToken);
+  };
+
+  // ✅ Set initial token in axios headers
   useEffect(() => {
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -29,7 +59,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
-  // Axios response interceptor for handling token refresh
+  // ✅ IMPROVED: Response interceptor with proper queue management
   useEffect(() => {
     const responseInterceptor = api.interceptors.response.use(
       (response) => response,
@@ -37,7 +67,21 @@ export const AuthProvider = ({ children }) => {
         const originalRequest = error.config;
 
         if (error.response?.status === 401 && !originalRequest._retry) {
+          if (isRefreshing) {
+            // ✅ Add to queue if already refreshing
+            return new Promise((resolve, reject) => {
+              failedQueue.push({ resolve, reject });
+            }).then(token => {
+              originalRequest.headers['Authorization'] = `Bearer ${token}`;
+              return api(originalRequest);
+            }).catch(err => {
+              return Promise.reject(err);
+            });
+          }
+
+          console.log('🔄 Token expired, attempting refresh...');
           originalRequest._retry = true;
+          isRefreshing = true;
 
           if (refreshToken) {
             try {
@@ -45,20 +89,40 @@ export const AuthProvider = ({ children }) => {
                 refreshToken: refreshToken
               });
               
-              const newToken = response.data.data.accessToken;
-              setToken(newToken);
-              localStorage.setItem('taskflow-token', newToken);
+              const { accessToken, refreshToken: newRefreshToken } = response.data.data;
               
-              // Update the failed request with new token and retry
-              originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+              console.log('✅ Token refreshed successfully');
+              
+              // ✅ Update token in all places
+              updateToken(accessToken);
+              if (newRefreshToken) {
+                updateRefreshToken(newRefreshToken);
+              }
+              
+              // ✅ Process queued requests
+              processQueue(null, accessToken);
+              
+              // ✅ Retry original request with new token
+              originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
               return api(originalRequest);
+              
             } catch (refreshError) {
-              // Refresh failed, logout user
+              console.error('❌ Token refresh failed:', refreshError);
+              
+              // ✅ Process queue with error
+              processQueue(refreshError, null);
+              
+              // ✅ Clear auth and redirect
               clearAuth();
+              
               return Promise.reject(refreshError);
+            } finally {
+              isRefreshing = false;
             }
           } else {
+            console.log('⚠️ No refresh token available');
             clearAuth();
+            return Promise.reject(error);
           }
         }
 
@@ -76,11 +140,13 @@ export const AuthProvider = ({ children }) => {
     const initializeAuth = async () => {
       try {
         if (token) {
+          console.log('🔍 Verifying stored token...');
           const response = await api.get('/auth/me');
           setUser(response.data.data.user);
+          console.log('✅ User authenticated');
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        console.error('❌ Auth initialization error:', error);
         clearAuth();
       } finally {
         setLoading(false);
@@ -90,21 +156,29 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  // Clear all auth data
+  // ✅ Clear all auth data
   const clearAuth = () => {
+    console.log('🧹 Clearing authentication data');
+    
     setUser(null);
-    setToken('');
-    setRefreshToken('');
+    setTokenState('');
+    setRefreshTokenState('');
     localStorage.removeItem('taskflow-token');
     localStorage.removeItem('taskflow-refresh-token');
     setError(null);
     delete api.defaults.headers.common['Authorization'];
+    
+    // ✅ Clear any pending refresh operations
+    isRefreshing = false;
+    failedQueue = [];
   };
 
-  // Login function
+  // ✅ Login function
   const login = async (email, password) => {
     try {
       setError(null);
+      console.log('🔐 Attempting login...');
+      
       const response = await api.post('/auth/login', {
         email,
         password
@@ -112,16 +186,16 @@ export const AuthProvider = ({ children }) => {
 
       const { user, accessToken, refreshToken: newRefreshToken } = response.data.data;
 
-      // Store tokens and user data
-      setToken(accessToken);
-      setRefreshToken(newRefreshToken);
+      console.log('✅ Login successful');
+
+      // ✅ Update tokens using centralized functions
+      updateToken(accessToken);
+      updateRefreshToken(newRefreshToken);
       setUser(user);
       
-      localStorage.setItem('taskflow-token', accessToken);
-      localStorage.setItem('taskflow-refresh-token', newRefreshToken);
- 
       return { success: true, user };
     } catch (error) {
+      console.error('❌ Login failed:', error);
       const message = error.response?.data?.message || 'Login failed';
       setError(message);
       return { success: false, message };
@@ -138,8 +212,7 @@ export const AuthProvider = ({ children }) => {
         password
       });
 
-      const { user, accessToken, refreshToken: newRefreshToken } = response.data.data;
-  
+      const { user } = response.data.data;
       return { success: true, user };
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed';
@@ -216,7 +289,7 @@ export const AuthProvider = ({ children }) => {
 
     // Utilities
     clearAuth,
-    api // Export api instance for use in other parts of the app
+    api
   };
 
   return (
