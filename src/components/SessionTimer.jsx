@@ -37,7 +37,7 @@ const SessionTimer = () => {
   const updateInProgressRef = useRef(false);
   const sessionIdRef = useRef(null);
 
-  const API_BASE_URL = import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5000';
 
   // ✅ RESET FLAGS WHEN SESSION CHANGES
   useEffect(() => {
@@ -69,7 +69,7 @@ const SessionTimer = () => {
       const token = localStorage.getItem('taskflow-token');
       console.log(`📡 SessionTimer: Updating session ${activeSession._id}:`, updates);
 
-      const response = await axios.put(`${API_BASE_URL}/api/sessions/${activeSession._id}`, updates, {
+      const response = await axios.put(`${API_BASE_URL}/sessions/${activeSession._id}`, updates, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

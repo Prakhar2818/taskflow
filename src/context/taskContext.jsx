@@ -42,7 +42,7 @@ export const TaskProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   // ✅ API Configuration
-  const API_BASE_URL = import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5000';
 
   // ✅ Auth Helper
   const getAuthHeader = () => {
@@ -62,7 +62,7 @@ export const TaskProvider = ({ children }) => {
 
       console.log('📡 Fetching all sessions from API...');
 
-      const response = await axios.get(`${API_BASE_URL}/api/sessions`, {
+      const response = await axios.get(`${API_BASE_URL}/sessions`, {
         headers: getAuthHeader()
       });
 
@@ -97,9 +97,9 @@ export const TaskProvider = ({ children }) => {
         return null;
       }
 
-      console.log(`📡 Making API call to: ${API_BASE_URL}/api/sessions/${sessionId}`);
+      console.log(`📡 Making API call to: ${API_BASE_URL}/sessions/${sessionId}`);
 
-      const response = await axios.get(`${API_BASE_URL}/api/sessions/${sessionId}`, {
+      const response = await axios.get(`${API_BASE_URL}/sessions/${sessionId}`, {
         headers: getAuthHeader()
       });
 
@@ -139,7 +139,7 @@ export const TaskProvider = ({ children }) => {
       setIsLoading(true);
       console.log('📡 Creating session via API...');
 
-      const response = await axios.post(`${API_BASE_URL}/api/sessions`, sessionData, {
+      const response = await axios.post(`${API_BASE_URL}/sessions`, sessionData, {
         headers: getAuthHeader()
       });
 

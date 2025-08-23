@@ -29,7 +29,7 @@ const Timer = () => {
   const completionHandledRef = useRef(false);
   const taskIdRef = useRef(null);
 
-  const API_BASE_URL = import.meta.env.REACT_APP_API_BASE_URL || "http://localhost:5000"
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:5000"
 
   // ✅ CLEANUP FUNCTION
   const cleanupTimer = useCallback(() => {
@@ -238,7 +238,7 @@ const Timer = () => {
       }
 
       const token = localStorage.getItem("taskflow-token")
-      const response = await axios.post(`${API_BASE_URL}/api/sessions/${activeSession._id}/start`, {}, {
+      const response = await axios.post(`${API_BASE_URL}/sessions/${activeSession._id}/start`, {}, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

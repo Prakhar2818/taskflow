@@ -24,7 +24,7 @@ const AutoTaskReportModal = () => {
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const API_BASE_URL = import.meta.env.REACT_APP_API_BASE_URL || "http://localhost:5000"
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:5000"
 
   const navigate = useNavigate();
 
@@ -69,7 +69,7 @@ const AutoTaskReportModal = () => {
     try {
       const token = localStorage.getItem("taskflow-token")
 
-      const response = await axios.post(`${API_BASE_URL}/api/sessions/${activeSession._id}/tasks/${currentSessionTaskIndex}/complete`, {
+      const response = await axios.post(`${API_BASE_URL}/sessions/${activeSession._id}/tasks/${currentSessionTaskIndex}/complete`, {
         isCompleted: taskData.isCompleted,
         completionPercentage: taskData.completionPercentage,
         reason: taskData.reason,

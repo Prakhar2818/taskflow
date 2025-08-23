@@ -28,7 +28,7 @@ const SessionModal = () => {
   const navigate = useNavigate();
 
   // ✅ Direct env variable usage with fallback
-  const API_BASE_URL = import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5000';
 
   const priorityOptions = [
     { value: "low", label: "Low", color: "from-green-400 to-green-500", emoji: "🟢" },
@@ -77,11 +77,11 @@ const SessionModal = () => {
       const token = localStorage.getItem('taskflow-token');
       
       console.log('📡 Creating session via SessionModal API...');
-      console.log('📡 API URL:', `${API_BASE_URL}/api/sessions`);
+      console.log('📡 API URL:', `${API_BASE_URL}/sessions`);
       console.log('📡 Session data:', { name: sessionName.trim(), validTasks });
       
       // ✅ Create session via API
-      const response = await axios.post(`${API_BASE_URL}/api/sessions`, {
+      const response = await axios.post(`${API_BASE_URL}/sessions`, {
         name: sessionName.trim(),
         description: description.trim(),
         tasks: validTasks.map(task => ({
