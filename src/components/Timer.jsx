@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTaskContext } from "../context/taskContext";
 import AutoTaskReportModal from "./AutoTaskReportModal";
+import axios from "axios";
 
 const Timer = () => {
   const {
@@ -28,6 +29,8 @@ const Timer = () => {
   const completionHandledRef = useRef(false);
   const taskIdRef = useRef(null);
 
+  const API_BASE_URL = import.meta.env.REACT_APP_API_BASE_URL || "http://localhost:5000"
+
   // ✅ CLEANUP FUNCTION
   const cleanupTimer = useCallback(() => {
     if (timerRef.current) {
@@ -39,7 +42,7 @@ const Timer = () => {
   // ✅ FIXED: Initialize timer with cleanup
   useEffect(() => {
     console.log("Timer: Context state changed");
-    
+
     // Reset completion flag when task changes
     if (activeTask?.id !== taskIdRef.current) {
       completionHandledRef.current = false;
@@ -52,7 +55,7 @@ const Timer = () => {
       const currentTask = activeSession.tasks[currentSessionTaskIndex];
       if (currentTask) {
         console.log("Timer: Setting active task from session:", currentTask.name);
-        
+
         const taskWithTimer = {
           ...currentTask,
           id: `session-${activeSession._id}-task-${currentSessionTaskIndex}`, // ✅ Consistent ID
@@ -60,7 +63,7 @@ const Timer = () => {
           sessionIndex: currentSessionTaskIndex,
           timerSeconds: currentTask.duration * 60
         };
-        
+
         setActiveTask(taskWithTimer);
       }
     }
@@ -72,7 +75,7 @@ const Timer = () => {
 
       // ✅ CLEANUP PREVIOUS TIMER
       cleanupTimer();
-      
+
       setSeconds(taskDuration);
       setTotalTime(taskDuration);
       setIsRunning(false);
@@ -161,7 +164,7 @@ const Timer = () => {
       timerRef.current = setInterval(() => {
         setSeconds((prevSeconds) => {
           const newSeconds = prevSeconds - 1;
-          
+
           console.log("Timer: Tick -", newSeconds, "seconds remaining");
 
           // Update context
@@ -179,7 +182,7 @@ const Timer = () => {
             setTimeout(() => onTimerComplete(), 100);
             return 0;
           }
-          
+
           return newSeconds;
         });
       }, 1000);
@@ -213,7 +216,7 @@ const Timer = () => {
     console.log("Timer: Reset clicked");
     cleanupTimer();
     completionHandledRef.current = false; // ✅ Reset completion flag
-    
+
     const taskDuration = activeTask?.timerSeconds || (activeTask?.duration * 60) || 60;
     setSeconds(taskDuration);
     setTotalTime(taskDuration);
@@ -221,20 +224,38 @@ const Timer = () => {
     setSessionStartTime(null);
   };
 
-  const handleStartPause = () => {
-    if (!activeTask) {
-      alert("No task selected");
-      return;
-    }
+  const handleStartPause = async () => {
+    try {
 
-    if (seconds <= 0) {
-      resetTimer();
-      return;
-    }
+      if (!activeTask) {
+        alert("No task selected");
+        return;
+      }
 
-    const newState = !isRunning;
-    console.log("Timer: Setting isRunning to:", newState);
-    setIsRunning(newState);
+      if (seconds <= 0) {
+        resetTimer();
+        return;
+      }
+
+      const token = localStorage.getItem("taskflow-token")
+      const response = await axios.post(`${API_BASE_URL}/api/sessions/${activeSession._id}/start`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.data.success) {
+        console.log(response.data);
+
+      }
+
+      const newState = !isRunning;
+      console.log("Timer: Setting isRunning to:", newState);
+      setIsRunning(newState);
+    } catch (error) {
+      console.error("No session to start")
+    }
   };
 
   // ✅ FIXED: Manual complete with prevention
@@ -280,7 +301,7 @@ const Timer = () => {
     if (!activeTask) return "#f59e0b";
     const colors = {
       low: "#10b981",
-      medium: "#f59e0b", 
+      medium: "#f59e0b",
       high: "#ef4444",
       urgent: "#8b5cf6"
     };
@@ -312,7 +333,7 @@ const Timer = () => {
           <div className="text-6xl mb-4">🎯</div>
           <p className="text-lg text-gray-600 mb-4">No active task selected</p>
           <p className="text-sm text-gray-500">
-            {activeSession 
+            {activeSession
               ? "Session loaded - timer will start automatically"
               : "Create a task or start a session to begin your focused work."
             }
@@ -387,21 +408,19 @@ const Timer = () => {
 
         {/* Timer Display */}
         <div className="mb-8">
-          <div className={`text-5xl font-mono font-black mb-4 transition-all duration-500 ${
-            isRunning
-              ? 'text-transparent bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text animate-pulse'
-              : seconds === 0
-                ? 'text-transparent bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text animate-bounce'
-                : 'text-gray-700'
-          }`}>
+          <div className={`text-5xl font-mono font-black mb-4 transition-all duration-500 ${isRunning
+            ? 'text-transparent bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text animate-pulse'
+            : seconds === 0
+              ? 'text-transparent bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text animate-bounce'
+              : 'text-gray-700'
+            }`}>
             {formatTime(seconds)}
           </div>
 
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full border border-blue-200 mb-4">
-            <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              seconds === 0 ? 'bg-orange-500 animate-bounce' :
+            <div className={`w-3 h-3 rounded-full transition-all duration-300 ${seconds === 0 ? 'bg-orange-500 animate-bounce' :
               isRunning ? 'bg-green-500 animate-pulse' : 'bg-blue-500'
-            }`}></div>
+              }`}></div>
             <span className="text-sm font-semibold text-gray-600">
               {getMotivationalMessage()}
             </span>
@@ -432,11 +451,10 @@ const Timer = () => {
           <button
             onClick={handleStartPause}
             disabled={!activeTask}
-            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-              isRunning
-                ? "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white"
-                : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
-            }`}
+            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${isRunning
+              ? "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white"
+              : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
+              }`}
           >
             <span className="text-xl">{isRunning ? "⏸️" : "▶️"}</span>
             {isRunning ? "Pause" : "Start"}

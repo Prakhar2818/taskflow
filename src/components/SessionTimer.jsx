@@ -102,7 +102,7 @@ const SessionTimer = () => {
   const handleSessionStart = async () => {
     if (activeSession?.status === 'pending') {
       await updateSessionAPI({
-        status: 'completed',
+        status: 'in-progress',
         startedAt: new Date()
       });
     }

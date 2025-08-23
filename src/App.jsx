@@ -16,6 +16,7 @@ import SettingsPage from "./pages/SettingsPage";
 import EnhancedHeader from "./components/EnhancedHeader";
 import SessionTimerPage from "./pages/SessionTimerPage";
 import { TaskProvider } from "./context/taskContext";
+import GeneratePDF from "./components/GeneratePdf";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -301,6 +302,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <SessionTimerPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/generate-report"
+                element={
+                  <ProtectedRoute>
+                    <GeneratePDF />
                   </ProtectedRoute>
                 }
               />
