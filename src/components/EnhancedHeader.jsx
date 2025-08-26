@@ -186,7 +186,7 @@ const ProfileModal = ({ isOpen, onClose, theme, onCommand }) => {
   if (!isVisible) return null;
 
   const commands = [
-    { command: 'logout', label: 'Logout', icon: '🚪', shortcut: 'Ctrl+L' },
+    { command: 'Logout', label: 'Logout', icon: '🚪', shortcut: 'Ctrl+L' },
     { command: 'settings', label: 'Settings', icon: '⚙️', shortcut: '' }
   ];
 
@@ -350,6 +350,8 @@ const EnhancedHeader = () => {
     switch (command) {
       case 'Logout':
         navigate('/login');
+        localStorage.removeItem("taskflow-token")
+        localStorage.removeItem("taskflow-refresh-token")
         break;
       case 'settings':
         navigate('/settings');
@@ -545,6 +547,7 @@ const EnhancedHeader = () => {
           isOpen={isProfileOpen}
           onClose={() => setIsProfileOpen(false)}
           user={user}
+          theme={theme}
           onCommand={handleProfile}
         />
       )}
