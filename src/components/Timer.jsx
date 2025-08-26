@@ -29,7 +29,7 @@ const Timer = () => {
   const completionHandledRef = useRef(false);
   const taskIdRef = useRef(null);
 
-  const API_BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:5000"
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:5000/api"
 
   // ✅ CLEANUP FUNCTION
   const cleanupTimer = useCallback(() => {

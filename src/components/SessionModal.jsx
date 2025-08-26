@@ -28,7 +28,7 @@ const SessionModal = () => {
   const navigate = useNavigate();
 
   // ✅ Direct env variable usage with fallback
-  const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5000';
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5000/api';
 
   const priorityOptions = [
     { value: "low", label: "Low", color: "from-green-400 to-green-500", emoji: "🟢" },

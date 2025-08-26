@@ -24,7 +24,7 @@ const AutoTaskReportModal = () => {
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const API_BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:5000"
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:5000/api"
 
   const navigate = useNavigate();
 
@@ -158,11 +158,14 @@ const AutoTaskReportModal = () => {
       console.log('📊 Submitting task report...');
 
       const taskCompletionData = {
-        isCompleted: reportData.taskStatus === 'completed',
-        completionPercentage: reportData.taskStatus === 'completed' ? 100 : 80,
+        // ✅ QUICK FIX: Only 'partially-completed' should be marked as incomplete
+        isCompleted: reportData.taskStatus !== 'partially-completed',
+        completionPercentage: reportData.taskStatus === 'completed' ? 100 :
+          reportData.taskStatus === 'delayed' ? 90 : 60,
         reason: reportData.delayReason || reportData.customDelayReason || '',
         notes: reportData.notes
       };
+
 
       // Create local report
       const report = {

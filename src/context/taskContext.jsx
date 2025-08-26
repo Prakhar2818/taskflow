@@ -42,7 +42,7 @@ export const TaskProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   // ✅ API Configuration
-  const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5000';
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5000/api';
 
   // ✅ Auth Helper
   const getAuthHeader = () => {
