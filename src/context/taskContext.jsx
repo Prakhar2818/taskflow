@@ -1,4 +1,4 @@
-// context/taskContext.js - FIXED WITH EXTENSIVE DEBUGGING
+// context/taskContext.js - UPDATED WITH addSessionReportAPI INTEGRATION
 import React, { createContext, useState, useContext, useCallback, useEffect } from "react";
 import axios from "axios";
 
@@ -53,6 +53,122 @@ export const TaskProvider = ({ children }) => {
     };
   };
 
+  // ✅ NEW: Add Session Report API Function
+  const addSessionReportAPI = useCallback(async (sessionId, reportData) => {
+    try {
+      const token = localStorage.getItem('taskflow-token');
+      if (!token) {
+        console.error('❌ No auth token found for session report');
+        return null;
+      }
+
+      console.log('📊 Adding session report via API for session:', sessionId);
+      console.log('📊 Report data:', reportData);
+
+      const response = await axios.post(`${API_BASE_URL}/sessions/${sessionId}/report`, {
+        actualTime: reportData.actualTime,
+        productivity: reportData.productivity,
+        overallRating: reportData.overallRating,
+        notes: reportData.notes,
+        sessionCompleted: true
+      }, {
+        headers: getAuthHeader(),
+        withCredentials: true
+      });
+
+      if (response.data.success) {
+        console.log('✅ Session report added successfully via API');
+        
+        // Update sessions list with the updated session
+        setSessions(prev => 
+          prev.map(session => 
+            session._id === sessionId ? response.data.data.session : session
+          )
+        );
+        
+        // Refresh session reports
+        await fetchSessionReports();
+        
+        return response.data.data.session;
+      } else {
+        console.warn('⚠️ Session report API returned success: false');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Error adding session report via API:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      return null;
+    }
+  }, [API_BASE_URL]);
+
+  // ✅ ENHANCED: Fetch Session Reports from existing sessions
+  const fetchSessionReports = useCallback(async () => {
+    try {
+      console.log('📡 Extracting session reports from sessions...');
+
+      // Filter sessions that have actualTime (meaning they have reports)
+      const sessionsWithReports = sessions.filter(session => 
+        session.actualTime && session.status === 'completed'
+      );
+
+      const sessionReports = sessionsWithReports.map(session => ({
+        sessionId: session._id,
+        sessionName: session.name,
+        actualTime: session.actualTime,
+        productivity: session.productivity || 85,
+        overallRating: session.overallRating || 4,
+        notes: session.notes || '',
+        status: session.status,
+        startedAt: session.startedAt,
+        completedAt: session.completedAt,
+        totalTasks: session.tasks?.length || 0,
+        completedTasks: session.completedTasks || 0,
+        taskReports: session.taskReports || [],
+        reportedAt: session.completedAt || session.updatedAt
+      }));
+
+      setSessionCompletionReports(sessionReports);
+      console.log('✅ Session reports extracted:', sessionReports.length);
+      
+      return sessionReports;
+    } catch (err) {
+      console.error('❌ Error extracting session reports:', err);
+      return [];
+    }
+  }, [sessions]);
+
+  // ✅ ENHANCED: Fetch Task Reports from session data
+  const fetchTaskReports = useCallback(async () => {
+    try {
+      console.log('📡 Extracting task reports from sessions...');
+
+      const allTaskReports = [];
+      
+      sessions.forEach(session => {
+        if (session.taskReports && session.taskReports.length > 0) {
+          session.taskReports.forEach(report => {
+            allTaskReports.push({
+              ...report,
+              sessionName: session.name,
+              sessionId: session._id
+            });
+          });
+        }
+      });
+
+      // Sort by reported date
+      allTaskReports.sort((a, b) => new Date(b.reportedAt) - new Date(a.reportedAt));
+
+      setTaskCompletionReports(allTaskReports);
+      console.log('✅ Task reports extracted:', allTaskReports.length);
+      
+      return allTaskReports;
+    } catch (err) {
+      console.error('❌ Error extracting task reports:', err);
+      return [];
+    }
+  }, [sessions]);
+
   // ✅ FETCH ALL SESSIONS FROM API
   const fetchSessions = useCallback(async () => {
     try {
@@ -79,10 +195,30 @@ export const TaskProvider = ({ children }) => {
     }
   }, [API_BASE_URL]);
 
+  // ✅ ENHANCED: Fetch all data and extract reports
+  const fetchAllData = useCallback(async () => {
+    const token = localStorage.getItem('taskflow-token');
+    if (!token) return;
+
+    console.log('🔄 Fetching all data from API...');
+    
+    // First fetch sessions (which contain all the data)
+    await fetchSessions();
+    
+  }, [fetchSessions]);
+
+  // ✅ Update sessions effect to extract reports after sessions are loaded
+  useEffect(() => {
+    if (sessions.length > 0) {
+      console.log('🔄 Sessions updated, extracting reports...');
+      fetchSessionReports();
+      fetchTaskReports();
+    }
+  }, [sessions, fetchSessionReports, fetchTaskReports]);
+
   // ✅ FETCH SINGLE SESSION BY ID AND SET AS ACTIVE - FIXED WITH DEBUGGING
   const fetchAndSetActiveSession = useCallback(async (sessionId) => {
     console.log('🔍 fetchAndSetActiveSession called with ID:', sessionId);
-    console.log('🔍 Current activeSession before fetch:', activeSession);
     
     if (!sessionId || sessionId === 'undefined') {
       console.warn('⚠️ Invalid session ID provided:', sessionId);
@@ -103,28 +239,15 @@ export const TaskProvider = ({ children }) => {
         headers: getAuthHeader()
       });
 
-      console.log('📡 API Response:', response.data);
-
       if (response.data.success) {
         const sessionData = response.data.data.session;
-        
-        console.log('🔄 About to set activeSession with data:', sessionData);
-        console.log('🔍 Session ID from response:', sessionData._id);
-        console.log('🔍 Session name:', sessionData.name);
-        
-        // ✅ Set the active session
         setActiveSession(sessionData);
-        
-        console.log('✅ setActiveSession called - React should re-render now');
-        
+        console.log('✅ Active session set:', sessionData.name);
         setError(null);
         return sessionData;
-      } else {
-        console.error('❌ API response not successful:', response.data);
       }
     } catch (err) {
       console.error('❌ Error fetching session:', err);
-      console.error('❌ Error details:', err.response?.data);
       setError(err.response?.data?.message || err.message);
       setActiveSession(null);
     } finally {
@@ -177,12 +300,6 @@ export const TaskProvider = ({ children }) => {
       sessionStartTime: null
     });
     console.log('🧹 Active session cleared');
-  }, []);
-
-  // ✅ DIRECT SET ACTIVE SESSION (for debugging/manual setting)
-  const setActiveSessionDirect = useCallback((sessionData) => {
-    console.log('🎯 Direct setActiveSession called with:', sessionData);
-    setActiveSession(sessionData);
   }, []);
 
   // ✅ ADD TASK REPORT (Local state)
@@ -245,12 +362,10 @@ export const TaskProvider = ({ children }) => {
 
   // ✅ TIMER STATE UPDATES
   const updateTimerState = useCallback((newState) => {
-    console.log("Context: updateTimerState called with:", newState);
     setTimerState(prev => ({ ...prev, ...newState }));
   }, []);
 
   const updateSessionTimerState = useCallback((newState) => {
-    console.log("Context: updateSessionTimerState called with:", newState);
     setSessionTimerState(prev => ({ ...prev, ...newState }));
   }, []);
 
@@ -291,7 +406,6 @@ export const TaskProvider = ({ children }) => {
   }, []);
 
   const addSession = useCallback((sessionData) => {
-    // Use createSession API instead
     return createSession(sessionData);
   }, [createSession]);
 
@@ -311,7 +425,7 @@ export const TaskProvider = ({ children }) => {
   }, [tasks]);
 
   const clearActiveTask = useCallback(() => {
-    clearActiveSession(); // This already clears everything
+    clearActiveSession();
   }, [clearActiveSession]);
 
   // ✅ COMPLETION HANDLERS
@@ -360,18 +474,17 @@ export const TaskProvider = ({ children }) => {
     const token = localStorage.getItem('taskflow-token');
     if (token) {
       console.log('🔄 Loading data from API on app start...');
-      fetchSessions().then(() => {
+      fetchAllData().then(() => {
         console.log('✅ Initial data load complete');
       });
     }
-  }, [fetchSessions]);
+  }, [fetchAllData]);
 
   // ✅ SESSION TIMER INTERVAL
   useEffect(() => {
     let interval;
     if (sessionTimerState.isRunning && sessionTimerState.sessionStartTime) {
       interval = setInterval(() => {
-        const elapsedTime = Math.floor((Date.now() - sessionTimerState.sessionStartTime) / 1000);
         setSessionTimerState(prev => ({
           ...prev,
           elapsedTime: prev.elapsedTime + 1
@@ -399,7 +512,6 @@ export const TaskProvider = ({ children }) => {
       console.log('❌ activeSession is null/undefined');
     }
   }, [activeSession]);
-
 
   // ✅ CONTEXT PROVIDER VALUE
   return (
@@ -439,11 +551,17 @@ export const TaskProvider = ({ children }) => {
       isLoading,
       error,
 
+      // ✅ NEW: Session Report API
+      addSessionReportAPI,
+
       // API Functions
       fetchSessions,
       fetchAndSetActiveSession,
       createSession,
       clearActiveSession,
+      fetchAllData,
+      fetchSessionReports,
+      fetchTaskReports,
 
       // Session Functions
       startSessionTimer,
@@ -453,7 +571,6 @@ export const TaskProvider = ({ children }) => {
       // Local Functions
       setActiveTask,
       setActiveSession,
-      setActiveSessionDirect,  // ✅ Add direct setter for debugging
       setCurrentSessionTaskIndex,
       addTaskReport,
       addTaskCompletionReport,
