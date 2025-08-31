@@ -10,15 +10,17 @@ export default function MemberDashboard() {
   const [tasks, setTasks] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [busy, setBusy] = useState(true);
+  const API_BASE_URL = 'http://localhost:5000/api';
+
 
   useEffect(() => {
     const load = async () => {
       if (loading || !currentWorkspace) return; // Updated
       try {
         const token = localStorage.getItem('taskflow-token');
-        const t = await axios.get('/api/tasks', { headers: { Authorization: `Bearer ${token}` } });
+        const t = await axios.get(`${API_BASE_URL}/tasks`, { headers: { Authorization: `Bearer ${token}` } });
         if (t.data.success) setTasks(t.data.data.tasks || []);
-        const s = await axios.get('/api/sessions', { headers: { Authorization: `Bearer ${token}` } });
+        const s = await axios.get(`${API_BASE_URL}/sessions`, { headers: { Authorization: `Bearer ${token}` } });
         if (s.data.success) setSessions(s.data.data.sessions || []);
       } catch (e) {
         console.error('Error loading dashboard data:', e);
