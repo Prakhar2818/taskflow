@@ -1,4 +1,4 @@
-// src/context/WorkspaceContext.jsx - UPDATED FOR MULTIPLE WORKSPACES
+// src/context/WorkspaceContext.jsx - COMPLETE VERSION
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 
@@ -11,35 +11,72 @@ export const WorkspaceProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
 
-  // ✅ Load from localStorage on app start
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  // ✅ Clear localStorage function
+  const clearWorkspaceStorage = () => {
+    localStorage.removeItem('taskflow-current-workspace');
+    localStorage.removeItem('taskflow-current-user-role');
+    localStorage.removeItem('taskflow-all-workspaces');
+  };
+
+  // ✅ Load from localStorage
+  const loadFromStorage = () => {
+    try {
+      const savedCurrentWorkspace = localStorage.getItem('taskflow-current-workspace');
+      const savedUserRole = localStorage.getItem('taskflow-current-user-role');
+      const savedAllWorkspaces = localStorage.getItem('taskflow-all-workspaces');
+      
+      console.log('🔍 Loading workspaces from localStorage');
+
+      if (savedCurrentWorkspace && savedUserRole) {
+        setCurrentWorkspace(JSON.parse(savedCurrentWorkspace));
+        setUserRole(savedUserRole);
+      }
+
+      if (savedAllWorkspaces) {
+        setAllWorkspaces(JSON.parse(savedAllWorkspaces));
+      }
+    } catch (error) {
+      console.error('Error loading workspace data from localStorage:', error);
+      clearWorkspaceStorage();
+    }
+  };
+
+  // ✅ Initialize workspace context
   useEffect(() => {
-    const loadFromStorage = () => {
+    const initializeWorkspace = async () => {
       try {
-        const savedCurrentWorkspace = localStorage.getItem('taskflow-current-workspace');
-        const savedUserRole = localStorage.getItem('taskflow-current-user-role');
-        const savedAllWorkspaces = localStorage.getItem('taskflow-all-workspaces');
+        const token = localStorage.getItem('taskflow-token');
         
-        console.log('🔍 Loading workspaces from localStorage');
-
-        if (savedCurrentWorkspace && savedUserRole) {
-          setCurrentWorkspace(JSON.parse(savedCurrentWorkspace));
-          setUserRole(savedUserRole);
+        if (!token) {
+          // No token, load from localStorage only
+          loadFromStorage();
+          return;
         }
 
-        if (savedAllWorkspaces) {
-          setAllWorkspaces(JSON.parse(savedAllWorkspaces));
+        // Try API first
+        console.log('🔄 Initializing workspace from API...');
+        await loadAllWorkspaces();
+        
+        // If API didn't set currentWorkspace, try localStorage
+        if (!currentWorkspace) {
+          console.log('🔄 No current workspace from API, trying localStorage...');
+          loadFromStorage();
         }
+        
       } catch (error) {
-        console.error('Error loading workspace data from localStorage:', error);
-        clearWorkspaceStorage();
+        console.error('❌ Error during workspace initialization:', error);
+        // Fallback to localStorage on API error
+        loadFromStorage();
       } finally {
         setInitialized(true);
         setLoading(false);
       }
     };
 
-    loadFromStorage();
-  }, []);
+    initializeWorkspace();
+  }, []); // Empty dependency array - run once on mount
 
   // ✅ Save current workspace to localStorage
   useEffect(() => {
@@ -74,67 +111,87 @@ export const WorkspaceProvider = ({ children }) => {
     }
   }, [allWorkspaces, initialized]);
 
-  const clearWorkspaceStorage = () => {
-    localStorage.removeItem('taskflow-current-workspace');
-    localStorage.removeItem('taskflow-current-user-role');
-    localStorage.removeItem('taskflow-all-workspaces');
-  };
-
   // ✅ Load all user workspaces from API
   const loadAllWorkspaces = async () => {
     try {
       const token = localStorage.getItem('taskflow-token');
-      if (!token) return;
+      if (!token) {
+        console.log('❌ No token available for loadAllWorkspaces');
+        return;
+      }
 
-      const response = await axios.get('/api/workspaces', {
+      console.log('📡 Fetching workspaces from API...');
+      const response = await axios.get(`${API_BASE_URL}/workspaces/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      console.log('✅ Workspaces API response:', response.data);
+      
       if (response.data.success) {
-        setAllWorkspaces(response.data.data.workspaces);
+        const workspaces = response.data.data.workspaces || [];
+        setAllWorkspaces(workspaces);
         
-        // If no current workspace set, use the first one
-        const currentFromAPI = response.data.data.workspaces.find(w => w.isCurrentWorkspace);
-        if (currentFromAPI && !currentWorkspace) {
-          setCurrentWorkspace(currentFromAPI.workspace);
-          setUserRole(currentFromAPI.userRole);
+        // Multiple fallback strategies for currentWorkspace
+        let workspaceToSet = null;
+        let roleToSet = null;
+
+        // Strategy 1: Find workspace marked as current
+        const markedCurrent = workspaces.find(w => w.isCurrentWorkspace);
+        if (markedCurrent) {
+          workspaceToSet = markedCurrent.workspace;
+          roleToSet = markedCurrent.userRole;
+          console.log('✅ Found marked current workspace:', markedCurrent.workspace.name);
         }
+        
+        // Strategy 2: If no current workspace, use the first one
+        else if (workspaces.length > 0) {
+          workspaceToSet = workspaces[0].workspace;
+          roleToSet = workspaces[0].userRole;
+          console.log('✅ Using first workspace as current:', workspaces[0].workspace.name);
+        }
+
+        if (workspaceToSet) {
+          setCurrentWorkspace(workspaceToSet);
+          setUserRole(roleToSet);
+        } else {
+          console.log('❌ No workspace to set as current');
+        }
+      } else {
+        console.error('❌ API returned unsuccessful response:', response.data);
       }
     } catch (error) {
-      console.error('Error loading all workspaces:', error);
+      console.error('❌ Error loading all workspaces:', error);
     }
   };
 
   // ✅ Switch to a different workspace
-// In your WorkspaceContext.jsx - ADD LOGGING
-const switchWorkspace = async (workspaceId) => {
-  try {
-    console.log('🔄 switchWorkspace called with:', workspaceId);
-    
-    const token = localStorage.getItem('taskflow-token');
-    const response = await axios.put(
-      `/api/workspaces/${workspaceId}/set-current`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+  const switchWorkspace = async (workspaceId) => {
+    try {
+      console.log('🔄 switchWorkspace called with:', workspaceId);
+      
+      const token = localStorage.getItem('taskflow-token');
+      const response = await axios.put(
+        `/api/workspaces/${workspaceId}/set-current`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    console.log('✅ switchWorkspace API response:', response.data);
+      console.log('✅ switchWorkspace API response:', response.data);
 
-    if (response.data.success) {
-      setCurrentWorkspace(response.data.data.workspace);
-      setUserRole(response.data.data.userRole);
-      console.log('✅ Workspace switched successfully');
-      return true;
-    } else {
-      console.error('❌ switchWorkspace API returned false');
+      if (response.data.success) {
+        setCurrentWorkspace(response.data.data.workspace);
+        setUserRole(response.data.data.userRole);
+        console.log('✅ Workspace switched successfully');
+        return true;
+      } else {
+        console.error('❌ switchWorkspace API returned false');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ switchWorkspace error:', error);
       return false;
     }
-  } catch (error) {
-    console.error('❌ switchWorkspace error:', error);
-    return false;
-  }
-};
-
+  };
 
   // ✅ Refresh current workspace data
   const refreshCurrentWorkspace = async () => {
@@ -177,7 +234,7 @@ const switchWorkspace = async (workspaceId) => {
       setUserRole,
       allWorkspaces,
       setAllWorkspaces,
-      loading: loading || !initialized,
+      loading,
       initialized,
       loadAllWorkspaces,
       switchWorkspace,
@@ -189,6 +246,7 @@ const switchWorkspace = async (workspaceId) => {
   );
 };
 
+// ✅ EXPORTED useWorkspace hook
 export const useWorkspace = () => {
   const context = useContext(WorkspaceContext);
   if (!context) {

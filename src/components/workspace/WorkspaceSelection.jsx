@@ -38,10 +38,10 @@ export default function WorkspaceSelection() {
   const handleWorkspaceSelect =  (workspaceData) => {
     // Switch workspace logic here
     const { userRole } = workspaceData;
-
+    console.log('🔄 Switching to workspace:', workspaceData.workspace.name, 'as', userRole);
     if (userRole === 'manager') {
       navigate('/manager-dashboard');
-    } else if(userRole === 'member') {
+    } if(userRole === 'member') {
       navigate('/member-dashboard');
     }
   };

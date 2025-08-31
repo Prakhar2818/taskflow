@@ -69,6 +69,8 @@ const WorkspaceGuard = ({ children }) => {
     "/workspace-selection",
     "/workspace/create",
     "/workspace/join",
+    "/member-dashboard",    // ✅ Allow member dashboard
+    "/manager-dashboard"
   ]);
 
 
@@ -97,13 +99,13 @@ const WorkspaceGuard = ({ children }) => {
 
 
   // ✅ Smart dashboard redirects based on current workspace role
-  if (location.pathname === '/dashboard') {
-    if (userRole === 'manager') {
-      return <Navigate to="/manager-dashboard" replace />;
-    } else if (userRole === 'member') {
-      return <Navigate to="/member-dashboard" replace />;
-    }
-  }
+  // if (location.pathname === '/dashboard') {
+  //   if (userRole === 'manager') {
+  //     return <Navigate to="/manager-dashboard" replace />;
+  //   } else if (userRole === 'member') {
+  //     return <Navigate to="/member-dashboard" replace />;
+  //   }
+  // }
 
 
   return children;
